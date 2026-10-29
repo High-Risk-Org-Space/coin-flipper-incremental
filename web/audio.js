@@ -3,6 +3,8 @@ const AudioSystem = {
   muted: false,
   masterVolume: 0.5,
   masterGain: null,
+  activeSounds: 0,
+  maxActiveSounds: 32,
 
   init() {
     if (!this.ctx) {
@@ -64,11 +66,43 @@ const AudioSystem = {
     noise.stop(t + 0.5);
   },
 
+  playFeltThud(volMod = 1) {
+    this.init();
+    if (this.muted || !this.ctx || this.activeSounds >= this.maxActiveSounds) return;
+    this.resume();
+    
+    this.activeSounds++;
+    const t = this.ctx.currentTime;
+    
+    // Low frequency sine thump
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(100, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.1);
+    
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.5 * volMod, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    
+    osc.start(t);
+    osc.stop(t + 0.2);
+    
+    setTimeout(() => { this.activeSounds--; }, 200);
+  },
+
   playClink(pitchMultiplier = 1, baseFreq = 1200, material = 'Copper', volMod = 1) {
     this.init();
-    if (this.muted || !this.ctx) return;
+    if (this.muted || !this.ctx || this.activeSounds >= this.maxActiveSounds) return;
     this.resume();
+    
+    this.activeSounds++;
     const t = this.ctx.currentTime;
+    
+    setTimeout(() => { this.activeSounds--; }, 300);
     
     // Quantum material: Modulated chorus chime
     if (material === 'Quantum') {

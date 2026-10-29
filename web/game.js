@@ -22,19 +22,29 @@ function addGold(amount) {
   updateShopUI();
 }
 
-function flipCoin(isManual = true) {
-  if (isManual) {
-    if (coinState.isFlipping) return;
-    AudioSystem.init();
-    AudioSystem.playWhoosh();
-    
-    coinState.isFlipping = true;
-    coinState.z = 10;
-    coinState.vz = 20 * (1 / gameState.flipDurationModifier);
-    coinState.vRot = 0.5 * (1 / gameState.flipDurationModifier);
-    coinState.bounces = 0;
-    coinState.wobbleTime = 0;
+function flipCoin(isManual = true, startX = 0, startY = 0) {
+  AudioSystem.init();
+  if (isManual) AudioSystem.playWhoosh();
+  
+  const coin = {
+    x: startX,
+    y: startY,
+    z: 10,
+    vx: (Math.random() - 0.5) * 10,
+    vy: (Math.random() - 0.5) * 10,
+    vz: 20 * (1 / gameState.flipDurationModifier),
+    rotation: 0,
+    vRot: 0.5 * (1 / gameState.flipDurationModifier),
+    bounces: 0,
+    wobbleTime: 0,
+    isFlipping: true,
+    result: null,
+    isManual: isManual
+  };
+  
+  activeCoins.push(coin);
 
+  if (isManual) {
     // Build frenzy
     let frenzyGain = 5;
     if (gameState.upgrades.heavyTungsten) frenzyGain /= 2; // Tungsten slows frenzy
@@ -44,9 +54,6 @@ function flipCoin(isManual = true) {
         triggerGoldRush();
     }
     updateStatsUI();
-  } else {
-    const isHeads = Math.random() > 0.5;
-    processFlipResult(isHeads ? 'heads' : 'tails', false);
   }
 }
 
@@ -133,16 +140,17 @@ function processFlipResult(result, isManual = true) {
   checkGambleResult(result, isManual);
 }
 
-onCoinLanded = (result) => {
-  processFlipResult(result, true);
+onCoinLanded = (result, isManual = true) => {
+  processFlipResult(result, isManual);
 };
 
 canvas.addEventListener('click', (e) => {
   AudioSystem.resume();
-  if (!coinState.isFlipping) {
-    createParticle(e.clientX, e.clientY, '#ffffff'); // Click burst spark
-  }
-  flipCoin(true);
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left - canvas.width / 2;
+  const y = e.clientY - rect.top - canvas.height / 2;
+  createParticle(e.clientX, e.clientY, '#ffffff'); // Click burst spark
+  flipCoin(true, x, y);
 });
 
 // Purchases
@@ -225,7 +233,10 @@ function automationTick(now) {
   if (gameState.autoFlippers > 0) {
     automationAccumulator += gameState.autoFlippers * dt;
     while (automationAccumulator >= 1) {
-      flipCoin(false);
+      // Spawn from random edge location
+      const spawnX = (Math.random() - 0.5) * canvas.width;
+      const spawnY = (Math.random() - 0.5) * canvas.height;
+      flipCoin(false, spawnX, spawnY);
       automationAccumulator -= 1;
     }
   }

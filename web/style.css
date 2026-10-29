@@ -115,6 +115,8 @@ section {
 }
 
 #canvas-container {
+  width: 100%;
+  height: 400px;
   position: relative;
   display: flex;
   justify-content: center;
@@ -122,6 +124,8 @@ section {
 }
 
 #game-canvas {
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   height: auto;
   cursor: pointer;
@@ -379,4 +383,19 @@ body.gold-rush::after {
     text-align: center;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
     color: #f8fafc;
+}
+
+/* Tablecloth Classes */
+.cloth-green { background-color: #0b3d17; box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+.cloth-obsidian { background-color: #0d0d12; box-shadow: inset 0 0 50px rgba(0,0,0,0.9); }
+.cloth-crimson { background-color: #4a0404; box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+.cloth-purple { background-color: #2e0854; box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+
+#canvas-container {
+  width: 100%;
+  height: 400px;
+  border: 15px solid #3e2723;
+  border-radius: 20px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
+  background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
 }

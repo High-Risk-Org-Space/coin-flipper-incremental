@@ -185,3 +185,17 @@ function closeStatsModal() {
     const modal = document.getElementById('stats-modal');
     if (modal) modal.classList.add('hidden');
 }
+
+
+const tableclothSelector = document.getElementById('tablecloth-selector');
+const canvasContainer = document.getElementById('canvas-container');
+
+if (tableclothSelector && canvasContainer) {
+    // Set initial class
+    canvasContainer.classList.add(tableclothSelector.value);
+    
+    tableclothSelector.addEventListener('change', (e) => {
+        canvasContainer.classList.remove('cloth-green', 'cloth-obsidian', 'cloth-crimson', 'cloth-purple');
+        canvasContainer.classList.add(e.target.value);
+    });
+}

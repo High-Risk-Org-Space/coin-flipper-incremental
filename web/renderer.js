@@ -14,18 +14,7 @@ const coinProps = {
 };
 
 // Physics state
-let coinState = {
-  y: 0,
-  z: 0, // Height for scaling
-  rotation: 0,
-  vy: 0,
-  vz: 0,
-  vRot: 0,
-  isFlipping: false,
-  result: null, // 'heads' or 'tails'
-  bounces: 0,
-  wobbleTime: 0
-};
+let activeCoins = [];
 
 // Materials dictionary
 const MATERIALS = {
@@ -44,28 +33,28 @@ function updateCoinMaterial(materialName) {
 }
 
 // Draw the 2.5D coin
-function drawCoin() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawCoin(coin) {
   
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2 + coinState.y;
+  
+  const cx = canvas.width / 2 + coin.x;
+  const cy = canvas.height / 2 + coin.y;
   
   // Scale based on Z (height)
-  const scale = 1 + (coinState.z / 300);
+  const scale = 1 + (coin.z / 300);
   
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   
   // Simulate 3D rotation with scaling on Y axis
-  const rotYScale = Math.cos(coinState.rotation);
+  const rotYScale = Math.cos(coin.rotation);
   const isHeads = rotYScale > 0;
   
   const currentHeight = coinProps.radius * Math.abs(rotYScale);
   const offset = coinProps.thickness * (rotYScale > 0 ? 1 : -1) * (1 - Math.abs(rotYScale));
 
   // Dynamic specular light based on rotation
-  const lightAngle = (coinState.rotation % (Math.PI * 2)) / (Math.PI * 2);
+  const lightAngle = (coin.rotation % (Math.PI * 2)) / (Math.PI * 2);
 
   // Draw edge (increased rim thickness shading)
   if (Math.abs(rotYScale) < 0.98) {
@@ -139,7 +128,9 @@ function drawCoin() {
 }
 
 function renderLoop() {
-  drawCoin();
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  activeCoins.forEach(coin => drawCoin(coin));
   requestAnimationFrame(renderLoop);
 }
 
@@ -247,56 +238,130 @@ function spawnSparks(x, y) {
 
 // Physics Loop
 function physicsLoop() {
-  if (coinState.isFlipping) {
-    // Gravity and movement
-    coinState.vz -= 0.8; // Gravity on Z
-    coinState.z += coinState.vz;
+  for (let i = activeCoins.length - 1; i >= 0; i--) {
+    let coin = activeCoins[i];
     
-    // Rotation
-    coinState.rotation += coinState.vRot;
-    
-    // Bounce logic
-    if (coinState.z <= 0) {
-      coinState.z = 0;
-      if (coinState.bounces < 2) {
-        coinState.vz = Math.abs(coinState.vz) * 0.4;
-        coinState.vRot *= 0.5;
-        coinState.bounces++;
-        const volMod = 1 - (coinState.bounces * 0.2); // Decay volume
-        AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
-      } else {
-        // Table flutter
-        if (coinState.bounces < 5) { // Micro bounces
-             coinState.vz = Math.abs(coinState.vz) * 0.25;
-             coinState.vRot *= 0.3;
-             coinState.bounces++;
-             const volMod = Math.max(0.01, 0.5 - (coinState.bounces * 0.1));
-             AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
+    if (coin.isFlipping) {
+      // 2D Movement
+      coin.x += coin.vx;
+      coin.y += coin.vy;
+      
+      // Boundaries
+      if (coin.x - coinProps.radius < -canvas.width/2) {
+        coin.x = -canvas.width/2 + coinProps.radius;
+        coin.vx *= -0.8;
+      } else if (coin.x + coinProps.radius > canvas.width/2) {
+        coin.x = canvas.width/2 - coinProps.radius;
+        coin.vx *= -0.8;
+      }
+      
+      if (coin.y - coinProps.radius < -canvas.height/2) {
+        coin.y = -canvas.height/2 + coinProps.radius;
+        coin.vy *= -0.8;
+      } else if (coin.y + coinProps.radius > canvas.height/2) {
+        coin.y = canvas.height/2 - coinProps.radius;
+        coin.vy *= -0.8;
+      }
+
+      // Gravity and movement
+      coin.vz -= 0.8; // Gravity on Z
+      coin.z += coin.vz;
+      
+      // Rotation
+      coin.rotation += coin.vRot;
+      
+      // Bounce logic
+      if (coin.z <= 0) {
+        coin.z = 0;
+        
+        // Play thud on felt
+        if (AudioSystem.playFeltThud) {
+            AudioSystem.playFeltThud(Math.min(1, Math.abs(coin.vz) * 0.1));
+        }
+
+        if (coin.bounces < 2) {
+          coin.vz = Math.abs(coin.vz) * 0.4;
+          coin.vRot *= 0.5;
+          coin.vx *= 0.8;
+          coin.vy *= 0.8;
+          coin.bounces++;
+          const volMod = 1 - (coin.bounces * 0.2); // Decay volume
+          AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
         } else {
-            // Initiate wobble phase
-            if (coinState.wobbleTime === 0) {
-                 coinState.wobbleTime = 1;
-                 const rotMod = (coinState.rotation % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-                 const landedHeads = rotMod < Math.PI / 2 || rotMod > Math.PI * 1.5;
-                 coinState.rotation = landedHeads ? 0 : Math.PI;
-                 coinState.result = landedHeads ? 'heads' : 'tails';
-            }
-            
-            // Micro-wobble dampening
-            if (coinState.wobbleTime > 0) {
-                 const dampening = Math.exp(-coinState.wobbleTime * 0.15); // Exponential decay
-                 const wobbleOffset = Math.sin(coinState.wobbleTime * 0.5) * 0.1 * dampening;
-                 coinState.rotation += wobbleOffset;
-                 coinState.wobbleTime++;
-                 
-                 if (dampening < 0.01) { // Wobble finished
-                      coinState.isFlipping = false;
-                      coinState.wobbleTime = 0;
-                      // Ensure it's perfectly snapped at end of wobble
-                      coinState.rotation = coinState.result === 'heads' ? 0 : Math.PI;
-                      onCoinLanded(coinState.result);
-                 }
-            }
+          // Table flutter
+          if (coin.bounces < 5) { // Micro bounces
+               coin.vz = Math.abs(coin.vz) * 0.25;
+               coin.vRot *= 0.3;
+               coin.vx *= 0.6;
+               coin.vy *= 0.6;
+               coin.bounces++;
+               const volMod = Math.max(0.01, 0.5 - (coin.bounces * 0.1));
+               AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
+          } else {
+              // Initiate wobble phase
+              if (coin.wobbleTime === 0) {
+                   coin.wobbleTime = 1;
+                   const rotMod = (coin.rotation % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                   const landedHeads = rotMod < Math.PI / 2 || rotMod > Math.PI * 1.5;
+                   coin.rotation = landedHeads ? 0 : Math.PI;
+                   coin.result = landedHeads ? 'heads' : 'tails';
+              }
+              
+              // Micro-wobble dampening
+              if (coin.wobbleTime > 0) {
+                   const dampening = Math.exp(-coin.wobbleTime * 0.15); // Exponential decay
+                   const wobbleOffset = Math.sin(coin.wobbleTime * 0.5) * 0.1 * dampening;
+                   coin.rotation += wobbleOffset;
+                   coin.wobbleTime++;
+                   
+                   coin.vx *= 0.8;
+                   coin.vy *= 0.8;
+
+                   if (dampening < 0.01) { // Wobble finished
+                        coin.isFlipping = false;
+                        coin.wobbleTime = 0;
+                        // Ensure it's perfectly snapped at end of wobble
+                        coin.rotation = coin.result === 'heads' ? 0 : Math.PI;
+                        onCoinLanded(coin.result, coin.isManual);
+                        activeCoins.splice(i, 1);
+                        continue;
+                   }
+              }
+          }
+        }
+      }
+    }
+  }
+
+  // Coin-on-coin collisions
+  for (let i = 0; i < activeCoins.length; i++) {
+    for (let j = i + 1; j < activeCoins.length; j++) {
+      let c1 = activeCoins[i];
+      let c2 = activeCoins[j];
+      let dx = c2.x - c1.x;
+      let dy = c2.y - c1.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 2 * coinProps.radius && dist > 0) {
+        // Exchange velocity (simple elastic collision)
+        let nx = dx / dist;
+        let ny = dy / dist;
+        let p = 2 * (c1.vx * nx + c1.vy * ny - c2.vx * nx - c2.vy * ny) / 2; // Assuming mass 1
+        
+        c1.vx -= p * nx;
+        c1.vy -= p * ny;
+        c2.vx += p * nx;
+        c2.vy += p * ny;
+        
+        // Push apart
+        let overlap = 2 * coinProps.radius - dist;
+        c1.x -= overlap/2 * nx;
+        c1.y -= overlap/2 * ny;
+        c2.x += overlap/2 * nx;
+        c2.y += overlap/2 * ny;
+
+        // Small clink
+        if (Math.abs(p) > 1) {
+             AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, 0.2);
         }
       }
     }
