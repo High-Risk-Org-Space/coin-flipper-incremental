@@ -33,6 +33,7 @@
           <p>Current Streak: <span id="current-streak">0</span></p>
           <p>Streak Record: <span id="streak-record">0</span></p>
           <p>Multiplier: <span id="streak-multiplier">1x</span></p>
+          <button id="btn-stats-modal" style="margin-top: 10px;" onclick="openStatsModal()">Detailed Telemetry</button>
         </div>
         
         <div id="upgrade-shop">
@@ -109,6 +110,21 @@
     <button id="btn-endless-mode">Continue in Cosmic Mint Mode</button>
   </div>
 
+  <div id="stats-modal" class="hidden">
+    <div class="modal-content">
+      <h2>Detailed Telemetry</h2>
+      <p>Total Flips: <span id="stats-modal-total-flips">0</span></p>
+      <p>Lifetime Gold Mined: <span id="stats-modal-lifetime-gold">0</span></p>
+      <p>Highest Streak Record: <span id="stats-modal-streak-record">0</span></p>
+      <p>Global Cities Visited: <span id="stats-modal-cities-visited">0</span></p>
+      <button onclick="closeStatsModal()" style="margin-top: 20px;">Close</button>
+    </div>
+  </div>
+
+  <script src="state.js"></script>
+  <script src="audio.js"></script>
+  <script src="renderer.js"></script>
+  <script src="ui.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

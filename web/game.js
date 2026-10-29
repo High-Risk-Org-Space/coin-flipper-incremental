@@ -1,561 +1,23 @@
-// --- Audio System ---
-const AudioSystem = {
-  ctx: null,
-  muted: false,
-  masterVolume: 0.5,
-  masterGain: null,
-
-  init() {
-    if (!this.ctx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioContext();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.connect(this.ctx.destination);
-      this.updateVolume();
-    }
-  },
-
-  updateVolume() {
-    if (this.masterGain) {
-      this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
-    }
-  },
-
-  resume() {
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-  },
-
-  playWhoosh() {
-    this.init();
-    if (this.muted || !this.ctx) return;
-    this.resume();
-    const t = this.ctx.currentTime;
-    
-    // Create white noise
-    const bufferSize = this.ctx.sampleRate * 0.5; // 0.5s
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-    
-    // Filter
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(400, t);
-    filter.frequency.exponentialRampToValueAtTime(1200, t + 0.2);
-    filter.Q.value = 1.5;
-    
-    // Envelope
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.5, t + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-    
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    
-    noise.start(t);
-    noise.stop(t + 0.5);
-  },
-
-  playClink(pitchMultiplier = 1, baseFreq = 1200, material = 'Copper', volMod = 1) {
-    this.init();
-    if (this.muted || !this.ctx) return;
-    this.resume();
-    const t = this.ctx.currentTime;
-    
-    // Quantum material: Modulated chorus chime
-    if (material === 'Quantum') {
-        const freqs = [baseFreq, baseFreq * 1.01, baseFreq * 0.99];
-        freqs.forEach((freq, i) => {
-            const osc = this.ctx.createOscillator();
-            osc.type = 'triangle';
-            
-            // LFO for modulation
-            const lfo = this.ctx.createOscillator();
-            lfo.type = 'sine';
-            lfo.frequency.value = 5 + i;
-            
-            const lfoGain = this.ctx.createGain();
-            lfoGain.gain.value = 20;
-            lfo.connect(lfoGain);
-            lfoGain.connect(osc.frequency);
-            
-            osc.frequency.value = freq * pitchMultiplier;
-            
-            const panner = this.ctx.createStereoPanner();
-            panner.pan.value = (i === 1) ? 1 : (i === 2 ? -1 : 0);
-            
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(0.3 * volMod, t + 0.1);
-            gain.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
-            
-            osc.connect(gain);
-            gain.connect(panner);
-            panner.connect(this.masterGain);
-            
-            lfo.start(t);
-            osc.start(t);
-            lfo.stop(t + 1.5);
-            osc.stop(t + 1.5);
-        });
-        return;
-    }
-    
-    // Modal synthesis with harmonic ratios for metallic disc
-    const f0 = baseFreq * pitchMultiplier;
-    const modes = [f0, f0 * 1.593, f0 * 2.135, f0 * 2.653];
-    
-    // Damping based on material
-    let damping = 0.3; // Default
-    if (material === 'Copper') damping = 0.1;
-    if (material === 'Silver') damping = 0.8;
-    if (material === 'Gold') damping = 0.5;
-    if (material === 'Platinum') damping = 1.2;
-
-    modes.forEach((freq, i) => {
-        const osc = this.ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0, t);
-        
-        // Higher modes decay faster and have lower initial volume
-        const initialVol = (0.5 / (i + 1)) * volMod;
-        gain.gain.linearRampToValueAtTime(initialVol, t + 0.01);
-        
-        const decayTime = (damping / (i * 0.5 + 1));
-        gain.gain.exponentialRampToValueAtTime(0.001, t + Math.max(0.05, decayTime));
-        
-        osc.connect(gain);
-        gain.connect(this.masterGain);
-        
-        osc.start(t);
-        osc.stop(t + Math.max(0.1, decayTime + 0.1));
-    });
-  },
-
-  playUpgrade() {
-    this.init();
-    if (this.muted || !this.ctx) return;
-    this.resume();
-    const t = this.ctx.currentTime;
-    
-    // Rich, warm jazz/lounge chords (Major 9th - Cmaj9: C, E, G, B, D)
-    const base = 261.63; // C4
-    const freqs = [base, base * 1.25, base * 1.5, base * 1.875, base * 2.25]; 
-    
-    freqs.forEach((freq, i) => {
-      const osc = this.ctx.createOscillator();
-      osc.type = 'sine'; // Soft attack envelope best with sine/triangle
-      osc.frequency.value = freq;
-      
-      // Soft attack envelope to prevent ear fatigue
-      const gain = this.ctx.createGain();
-      const startTime = t + (i * 0.05);
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.2); // Slow attack
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.5); // Long decay
-      
-      osc.connect(gain);
-      gain.connect(this.masterGain);
-      
-      osc.start(startTime);
-      osc.stop(startTime + 2.0);
-    });
-  },
-
-  playFanfare() {
-    this.init();
-    if (this.muted || !this.ctx) return;
-    this.resume();
-    const t = this.ctx.currentTime;
-    
-    const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    freqs.forEach((freq, i) => {
-      const osc = this.ctx.createOscillator();
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      
-      const gain = this.ctx.createGain();
-      const startTime = t + (i < 3 ? i * 0.15 : 0.6);
-      const duration = i < 3 ? 0.1 : 0.6;
-      
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-      
-      // Simple lowpass for square wave
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 2000;
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.masterGain);
-      
-      osc.start(startTime);
-      osc.stop(startTime + duration + 0.1);
-    });
-  }
-};
-
-// Expose globally for testing/interaction if needed
-window.AudioSystem = AudioSystem;
-
-// --- Canvas & Rendering System ---
-const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
-const particlesContainer = document.getElementById('particles-container');
-
-// Coin Properties
-const coinProps = {
-  radius: 80,
-  thickness: 20,
-  baseColor: '#b87333', // Copper
-  edgeColor: '#8c5222',
-  text: 'COPPER',
-  textColor: '#5e3412',
-  pitch: 1
-};
-
-// Physics state
-let coinState = {
-  y: 0,
-  z: 0, // Height for scaling
-  rotation: 0,
-  vy: 0,
-  vz: 0,
-  vRot: 0,
-  isFlipping: false,
-  result: null, // 'heads' or 'tails'
-  bounces: 0,
-  wobbleTime: 0
-};
-
-// Materials dictionary
-const MATERIALS = {
-  Copper: { name: 'Copper', baseColor: '#b87333', edgeColor: '#8c5222', text: 'COPPER', textColor: '#5e3412', pitch: 1, baseFreq: 1200 },
-  Silver: { name: 'Silver', baseColor: '#c0c0c0', edgeColor: '#808080', text: 'SILVER', textColor: '#555555', pitch: 1, baseFreq: 3200 },
-  Gold:   { name: 'Gold', baseColor: '#ffd700', edgeColor: '#b8860b', text: 'GOLD',   textColor: '#8b6508', pitch: 1, baseFreq: 2600 },
-  Platinum: { name: 'Platinum', baseColor: '#e5e4e2', edgeColor: '#a0a0a0', text: 'PLAT', textColor: '#404040', pitch: 1, baseFreq: 4400 },
-  Crypto: { name: 'Crypto', baseColor: '#f7931a', edgeColor: '#c4710b', text: 'BTC',  textColor: '#ffffff', pitch: 1, baseFreq: 1500 },
-  Quantum:{ name: 'Quantum', baseColor: '#4b0082', edgeColor: '#8a2be2', text: 'QUANTUM',textColor: '#00ffff', pitch: 1, baseFreq: 1000 }
-};
-
-function updateCoinMaterial(materialName) {
-  if (MATERIALS[materialName]) {
-    Object.assign(coinProps, MATERIALS[materialName]);
-  }
-}
-
-// Draw the 2.5D coin
-function drawCoin() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2 + coinState.y;
-  
-  // Scale based on Z (height)
-  const scale = 1 + (coinState.z / 300);
-  
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(scale, scale);
-  
-  // Simulate 3D rotation with scaling on Y axis
-  const rotYScale = Math.cos(coinState.rotation);
-  const isHeads = rotYScale > 0;
-  
-  const currentHeight = coinProps.radius * Math.abs(rotYScale);
-  const offset = coinProps.thickness * (rotYScale > 0 ? 1 : -1) * (1 - Math.abs(rotYScale));
-
-  // Dynamic specular light based on rotation
-  const lightAngle = (coinState.rotation % (Math.PI * 2)) / (Math.PI * 2);
-
-  // Draw edge (increased rim thickness shading)
-  if (Math.abs(rotYScale) < 0.98) {
-    // Edge body
-    ctx.fillStyle = coinProps.edgeColor;
-    ctx.beginPath();
-    ctx.ellipse(0, offset, coinProps.radius, currentHeight, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Connect edge sides
-    ctx.beginPath();
-    ctx.moveTo(-coinProps.radius, 0);
-    ctx.lineTo(-coinProps.radius, offset);
-    ctx.lineTo(coinProps.radius, offset);
-    ctx.lineTo(coinProps.radius, 0);
-    ctx.fill();
-    
-    // Edge shading
-    const edgeGrad = ctx.createLinearGradient(-coinProps.radius, 0, coinProps.radius, 0);
-    edgeGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
-    edgeGrad.addColorStop(0.5, `rgba(255,255,255,${0.2 + 0.3 * Math.sin(lightAngle * Math.PI * 4)})`);
-    edgeGrad.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = edgeGrad;
-    ctx.beginPath();
-    ctx.moveTo(-coinProps.radius, 0);
-    ctx.lineTo(-coinProps.radius, offset);
-    ctx.lineTo(coinProps.radius, offset);
-    ctx.lineTo(coinProps.radius, 0);
-    ctx.fill();
-  }
-
-  // Draw face
-  ctx.fillStyle = coinProps.baseColor;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, coinProps.radius, currentHeight, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Face specular shading
-  const grad = ctx.createLinearGradient(-coinProps.radius, -currentHeight, coinProps.radius, currentHeight);
-  grad.addColorStop(0, `rgba(255,255,255,${0.3 + 0.4 * Math.cos(lightAngle * Math.PI * 2)})`);
-  grad.addColorStop(0.5, 'rgba(255,255,255,0)');
-  grad.addColorStop(1, 'rgba(0,0,0,0.5)');
-  
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, coinProps.radius, currentHeight, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Draw embossed face text/design
-  if (Math.abs(rotYScale) > 0.1) {
-    ctx.font = `bold ${28 * Math.abs(rotYScale)}px 'Cinzel', 'Playfair Display', serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    const text = isHeads ? coinProps.text : 'TAILS';
-    
-    // Emboss shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillText(text, 0, 2 * Math.abs(rotYScale));
-    
-    // Emboss highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText(text, 0, -1 * Math.abs(rotYScale));
-
-    // Text color
-    ctx.fillStyle = coinProps.textColor;
-    ctx.fillText(text, 0, 0);
-  }
-
-  ctx.restore();
-}
-
-function renderLoop() {
-  drawCoin();
-  requestAnimationFrame(renderLoop);
-}
-
-// Particle system
-function spawnFloatingText(text, color = '#d4af37') {
-  const el = document.createElement('div');
-  el.className = 'particle';
-  el.textContent = text;
-  el.style.color = color;
-  
-  // Randomize position near center
-  const x = (canvas.offsetWidth / 2) + (Math.random() * 60 - 30) - 30; // Better horizontal spread
-  const y = (canvas.offsetHeight / 2) + (Math.random() * 40 - 20) - 20; // Slightly higher start
-  
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
-  
-  particlesContainer.appendChild(el);
-  
-  setTimeout(() => {
-    if (el.parentNode) el.parentNode.removeChild(el);
-  }, 1000);
-}
-
-function spawnSparks(x, y) {
-    const numSparks = 10;
-    for (let i = 0; i < numSparks; i++) {
-        const spark = document.createElement('div');
-        spark.className = 'spark';
-        
-        // Random velocities
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 3 + 2;
-        const vx = Math.cos(angle) * speed;
-        const vy = Math.sin(angle) * speed;
-        
-        spark.style.left = `${x}px`;
-        spark.style.top = `${y}px`;
-        particlesContainer.appendChild(spark);
-        
-        let cx = x;
-        let cy = y;
-        let cvy = vy;
-        let life = 1.0;
-        
-        const animateSpark = () => {
-            if (life <= 0) {
-                if (spark.parentNode) spark.parentNode.removeChild(spark);
-                return;
-            }
-            
-            cvy += 0.1; // gravity
-            cx += vx;
-            cy += cvy;
-            life -= 0.05;
-            
-            spark.style.left = `${cx}px`;
-            spark.style.top = `${cy}px`;
-            spark.style.opacity = life;
-            
-            requestAnimationFrame(animateSpark);
-        };
-        requestAnimationFrame(animateSpark);
-    }
-}
-
-// Physics Loop
-function physicsLoop() {
-  if (coinState.isFlipping) {
-    // Gravity and movement
-    coinState.vz -= 0.8; // Gravity on Z
-    coinState.z += coinState.vz;
-    
-    // Rotation
-    coinState.rotation += coinState.vRot;
-    
-    // Bounce logic
-    if (coinState.z <= 0) {
-      coinState.z = 0;
-      if (coinState.bounces < 2) {
-        coinState.vz = Math.abs(coinState.vz) * 0.4;
-        coinState.vRot *= 0.5;
-        coinState.bounces++;
-        const volMod = 1 - (coinState.bounces * 0.2); // Decay volume
-        AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
-      } else {
-        // Table flutter
-        if (coinState.bounces < 5) { // Micro bounces
-             coinState.vz = Math.abs(coinState.vz) * 0.25;
-             coinState.vRot *= 0.3;
-             coinState.bounces++;
-             const volMod = Math.max(0.01, 0.5 - (coinState.bounces * 0.1));
-             AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
-        } else {
-            // Initiate wobble phase
-            if (coinState.wobbleTime === 0) {
-                 coinState.wobbleTime = 1;
-                 const rotMod = (coinState.rotation % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-                 const landedHeads = rotMod < Math.PI / 2 || rotMod > Math.PI * 1.5;
-                 coinState.rotation = landedHeads ? 0 : Math.PI;
-                 coinState.result = landedHeads ? 'heads' : 'tails';
-            }
-            
-            // Micro-wobble dampening
-            if (coinState.wobbleTime > 0) {
-                 const dampening = Math.exp(-coinState.wobbleTime * 0.15); // Exponential decay
-                 const wobbleOffset = Math.sin(coinState.wobbleTime * 0.5) * 0.1 * dampening;
-                 coinState.rotation += wobbleOffset;
-                 coinState.wobbleTime++;
-                 
-                 if (dampening < 0.01) { // Wobble finished
-                      coinState.isFlipping = false;
-                      coinState.wobbleTime = 0;
-                      // Ensure it's perfectly snapped at end of wobble
-                      coinState.rotation = coinState.result === 'heads' ? 0 : Math.PI;
-                      onCoinLanded(coinState.result);
-                 }
-            }
-        }
-      }
-    }
-  }
-}
-
-setInterval(physicsLoop, 1000 / 60);
-requestAnimationFrame(renderLoop);
-
-// Hook required by physicsLoop
-let onCoinLanded = (result) => { console.log("Landed:", result); };
-
 // --- Core Gameplay Mechanics ---
 
-let gameState = {
-  gold: 0,
-  totalFlips: 0,
-  lifetimeGold: 0,
-  currentStreak: 0,
-  streakRecord: 0,
-  citiesVisited: 0,
-  influenceTokens: 0,
-  currentCityIndex: 0,
-  baseCoinValue: 1,
-  multiplier: 1,
-  luckyEdgeChance: 0.01,
-  flipDurationModifier: 1, // Influenced by table mat
-  gambleCap: 100,
-  autoFlippers: 0,
-  
-  // Upgrade levels
-  upgrades: {
-    alchemy: 0, // 0 = Copper, 1 = Silver, etc.
-    velvetMat: false,
-    magneticTable: false,
-    
-    // Automation counts
-    streetPerformer: 0,
-    clockwork: 0,
-    hftDesk: 0,
-    quantumMulti: 0
-  },
-  
-  // Presige 2
-  landmarksOwned: 0,
-  banksOwned: 0,
-  continentsOwned: 0
-};
-
-// UI Elements
-const elGold = document.getElementById('gold-count');
-const elTotalFlips = document.getElementById('total-flips');
-const elLifetimeGold = document.getElementById('lifetime-gold');
-const elCurrentStreak = document.getElementById('current-streak');
-const elStreakRecord = document.getElementById('streak-record');
-const elStreakMultiplier = document.getElementById('streak-multiplier');
-
-function updateStatsUI() {
-  elGold.textContent = Math.floor(gameState.gold);
-  elTotalFlips.textContent = gameState.totalFlips;
-  elLifetimeGold.textContent = Math.floor(gameState.lifetimeGold);
-  elCurrentStreak.textContent = gameState.currentStreak;
-  elStreakRecord.textContent = gameState.streakRecord;
-  elStreakMultiplier.textContent = gameState.multiplier + 'x';
-}
-
 function addGold(amount) {
-  // Apply City Influence (+10% per token)
   const influenceMultiplier = 1 + (gameState.influenceTokens * 0.1);
-  
-  // Apply Geopolitical Domination Bonuses
-  // e.g. Landmarks +50% each, Banks +200% each, Continents +1000% each
   let dominationMultiplier = 1;
   if (gameState.landmarksOwned) dominationMultiplier += (gameState.landmarksOwned * 0.5);
   if (gameState.banksOwned) dominationMultiplier += (gameState.banksOwned * 2.0);
   if (gameState.continentsOwned) dominationMultiplier += (gameState.continentsOwned * 10.0);
+  
+  // Gold Rush multiplier
+  if (gameState.isGoldRush) {
+      amount *= 5;
+  }
   
   const totalAmount = amount * influenceMultiplier * dominationMultiplier;
   
   gameState.gold += totalAmount;
   gameState.lifetimeGold += totalAmount;
   updateStatsUI();
-  updateShopUI(); // Defined later
+  updateShopUI();
 }
 
 function flipCoin(isManual = true) {
@@ -570,11 +32,34 @@ function flipCoin(isManual = true) {
     coinState.vRot = 0.5 * (1 / gameState.flipDurationModifier);
     coinState.bounces = 0;
     coinState.wobbleTime = 0;
+
+    // Build frenzy
+    let frenzyGain = 5;
+    if (gameState.upgrades.heavyTungsten) frenzyGain /= 2; // Tungsten slows frenzy
+    
+    gameState.frenzy = Math.min(100, gameState.frenzy + frenzyGain);
+    if (gameState.frenzy >= 100 && !gameState.isGoldRush) {
+        triggerGoldRush();
+    }
+    updateStatsUI();
   } else {
-    // Instant flip for automation
     const isHeads = Math.random() > 0.5;
     processFlipResult(isHeads ? 'heads' : 'tails', false);
   }
+}
+
+function triggerGoldRush() {
+    gameState.isGoldRush = true;
+    document.body.classList.add('gold-rush');
+    AudioSystem.playFrenzyTheme();
+    
+    // Duration 8 seconds
+    setTimeout(() => {
+        gameState.isGoldRush = false;
+        gameState.frenzy = 0;
+        document.body.classList.remove('gold-rush');
+        updateStatsUI();
+    }, 8000);
 }
 
 function processFlipResult(result, isManual = true) {
@@ -583,28 +68,29 @@ function processFlipResult(result, isManual = true) {
   let payout = 0;
   let text = '';
   
-  // Golden Edge chance
   let edgeChance = gameState.luckyEdgeChance;
-  // Monte Carlo city buff (+25% lucky edge chance)
   if (CITIES[gameState.currentCityIndex].name === 'Monte Carlo') {
      edgeChance *= 1.25;
   }
   
   const isGoldenEdge = Math.random() < edgeChance;
 
+  let baseVal = gameState.baseCoinValue;
+  if (gameState.upgrades.heavyTungsten) {
+      baseVal *= 2; // Heavy tungsten increases base value
+  }
+
   if (isGoldenEdge) {
-    payout = gameState.baseCoinValue * 10 * gameState.multiplier;
+    payout = baseVal * 10 * gameState.multiplier;
     text = 'GOLDEN EDGE! +$' + payout;
     spawnFloatingText(text, '#ffd700');
-    if (isManual) AudioSystem.playFanfare();
+    if (isManual) AudioSystem.playFrenzyTheme();
   } else if (result === 'heads') {
-    // Magnetic Table buff (near misses -> heads)
-    let magneticBuff = false;
     if (gameState.upgrades.magneticTable && Math.random() < 0.2) {
-       magneticBuff = true;
+       // Magnetic Buff!
     }
     
-    payout = gameState.baseCoinValue * gameState.multiplier;
+    payout = baseVal * gameState.multiplier;
     text = '+$' + payout;
     
     gameState.currentStreak++;
@@ -612,22 +98,18 @@ function processFlipResult(result, isManual = true) {
       gameState.streakRecord = gameState.currentStreak;
     }
     
-    // Hot Streak logic
     if (gameState.currentStreak >= 10) {
       gameState.multiplier = 3;
-      if (gameState.currentStreak === 10 && isManual) AudioSystem.playFanfare();
+      if (gameState.currentStreak === 10 && isManual) AudioSystem.playFrenzyTheme();
     } else if (gameState.currentStreak >= 5) {
       gameState.multiplier = 2;
     }
     
     spawnFloatingText(text);
   } else {
-    // Tails, break streak
-    // Check magnetic table near-miss save
     if (gameState.upgrades.magneticTable && Math.random() < 0.2) {
-       // Saved by magnet! Turns to heads.
        result = 'heads';
-       payout = gameState.baseCoinValue * gameState.multiplier;
+       payout = baseVal * gameState.multiplier;
        text = '+$' + payout + ' (Magnet!)';
        gameState.currentStreak++;
        spawnFloatingText(text, '#00ffff');
@@ -638,289 +120,104 @@ function processFlipResult(result, isManual = true) {
     }
   }
   
+  if (isManual && gameState.isGoldRush) {
+      // Golden particle shower on manual win during gold rush
+      for(let i=0; i<5; i++) {
+          createParticle(window.innerWidth/2, window.innerHeight/2, '#ffd700');
+      }
+  }
+
   addGold(payout);
-  
-  // Check Gamble
   checkGambleResult(result, isManual);
 }
 
-// Override the hook
 onCoinLanded = (result) => {
   processFlipResult(result, true);
 };
 
 canvas.addEventListener('click', (e) => {
-    // Generate sparks at click relative to canvas
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    spawnSparks(x, y);
-    
-    flipCoin(true);
+  if (!coinState.isFlipping) {
+    createParticle(e.clientX, e.clientY, '#ffffff'); // Click burst spark
+  }
+  flipCoin(true);
 });
 
-// Cities array for reference
-const CITIES = [
-  { name: 'Rusty Alley', desc: 'Starting city.' },
-  { name: 'Wall Street', desc: '+50% automation efficiency.' },
-  { name: 'Monte Carlo', desc: 'Double-or-Nothing cap increased, +25% lucky edge chance.' },
-  { name: 'Tokyo Cyber-District', desc: 'Quantum coins generate passive dividends.' },
-  { name: 'Geneva Vault', desc: '2% interest per minute on unspent gold.' }
-];
-
-// Placeholder for gamble check
-function checkGambleResult(result, isManual) {}
-// Placeholder for updateShopUI
-function updateShopUI() {}
-
-
-// --- Save/Load System ---
-const SAVE_KEY = 'coinflipper_save_v1';
-
-function saveGame() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
-  spawnFloatingText('Game Saved', '#4ade80');
-}
-
-function loadGame() {
-  const save = localStorage.getItem(SAVE_KEY);
-  if (save) {
-    try {
-      const parsed = JSON.parse(save);
-      // Merge with default state to handle upgrades/new fields
-      gameState = { ...gameState, ...parsed };
-      
-      // Update nested objects correctly
-      if (parsed.upgrades) {
-        gameState.upgrades = { ...gameState.upgrades, ...parsed.upgrades };
-      }
-
-      applyLoadedState();
-      spawnFloatingText('Game Loaded', '#4ade80');
-    } catch (e) {
-      console.error("Save file corrupted", e);
-    }
-  }
-}
-
-function applyLoadedState() {
-  // Apply material
-  const alchemyNames = Object.keys(MATERIALS);
-  updateCoinMaterial(alchemyNames[gameState.upgrades.alchemy] || 'Copper');
-  
-  // Re-calculate derived stats
-  applyCityBuffs();
-  updateShopUI();
-  updateStatsUI();
-  updateCityUI(); // defined later
-}
-
-function hardReset() {
-  if (confirm("Are you sure? This will wipe all progress including prestige!")) {
-    localStorage.removeItem(SAVE_KEY);
-    location.reload();
-  }
-}
-
-function exportSave() {
-  const saveStr = btoa(JSON.stringify(gameState));
-  navigator.clipboard.writeText(saveStr).then(() => {
-    alert("Save code copied to clipboard!");
-  }).catch(() => {
-    const p = prompt("Copy this save code:", saveStr);
-  });
-}
-
-function importSave() {
-  const saveStr = prompt("Paste your save code:");
-  if (saveStr) {
-    try {
-      const decoded = atob(saveStr);
-      const parsed = JSON.parse(decoded);
-      gameState = { ...gameState, ...parsed };
-      if (parsed.upgrades) gameState.upgrades = { ...gameState.upgrades, ...parsed.upgrades };
-      saveGame();
-      applyLoadedState();
-      alert("Save imported successfully!");
-    } catch (e) {
-      alert("Invalid save code.");
-    }
-  }
-}
-
-// Auto-save every 5 seconds
-setInterval(saveGame, 5000);
-
-// Bind UI buttons
-document.getElementById('btn-save').addEventListener('click', saveGame);
-document.getElementById('btn-load').addEventListener('click', loadGame);
-document.getElementById('btn-export').addEventListener('click', exportSave);
-document.getElementById('btn-import').addEventListener('click', importSave);
-document.getElementById('btn-reset').addEventListener('click', hardReset);
-document.getElementById('btn-audio-toggle').addEventListener('click', (e) => {
-  AudioSystem.muted = !AudioSystem.muted;
-  e.target.textContent = AudioSystem.muted ? '🔇 Unmute' : '🔊 Mute';
-  AudioSystem.updateVolume();
-});
-
-document.getElementById('volume-slider').addEventListener('input', (e) => {
-    AudioSystem.masterVolume = parseFloat(e.target.value);
-    AudioSystem.updateVolume();
-});
-
-
-// --- Shop & Upgrades System ---
-const ALCHEMY_TIERS = [
-  { name: 'Copper', cost: 0, val: 1 },
-  { name: 'Silver', cost: 100, val: 5 },
-  { name: 'Gold', cost: 1000, val: 25 },
-  { name: 'Platinum', cost: 10000, val: 150 },
-  { name: 'Crypto', cost: 100000, val: 1000 },
-  { name: 'Quantum', cost: 1000000, val: 10000 }
-];
-
-const APPARATUS = [
-  { id: 'velvetMat', name: 'Velvet Felt Mat', desc: 'Faster manual flips.', baseCost: 500 },
-  { id: 'magneticTable', name: 'Magnetic Table', desc: 'Attracts near-misses (Tails -> Heads 20%).', baseCost: 2000 }
-];
-
-const AUTOMATION = [
-  { id: 'streetPerformer', name: 'Street Performer', desc: '1 flip/sec.', baseCost: 50, rate: 1 },
-  { id: 'clockwork', name: 'Clockwork Flipper', desc: '5 flips/sec.', baseCost: 500, rate: 5 },
-  { id: 'hftDesk', name: 'High-Freq Trading Desk', desc: '25 flips/sec.', baseCost: 5000, rate: 25 },
-  { id: 'quantumMulti', name: 'Quantum Multi-Flipper', desc: '100 flips/sec.', baseCost: 50000, rate: 100 }
-];
-
+// Purchases
 function purchaseAlchemy() {
-  const nextTierIndex = gameState.upgrades.alchemy + 1;
-  if (nextTierIndex >= ALCHEMY_TIERS.length) return;
-  
-  const tier = ALCHEMY_TIERS[nextTierIndex];
-  if (gameState.gold >= tier.cost) {
-    gameState.gold -= tier.cost;
-    gameState.upgrades.alchemy = nextTierIndex;
-    gameState.baseCoinValue = tier.val;
-    updateCoinMaterial(tier.name);
-    AudioSystem.playUpgrade();
-    updateShopUI();
-    updateStatsUI();
+  if (gameState.upgrades.alchemy < ALCHEMY_TIERS.length) {
+    const tier = ALCHEMY_TIERS[gameState.upgrades.alchemy];
+    if (gameState.gold >= tier.cost) {
+      gameState.gold -= tier.cost;
+      gameState.baseCoinValue = tier.multiplier;
+      gameState.upgrades.alchemy++;
+      updateCoinMaterialFromState();
+      AudioSystem.playFrenzyTheme();
+      updateStatsUI();
+      updateShopUI();
+      saveGame();
+    }
   }
 }
 
 function purchaseApparatus(id) {
   const item = APPARATUS.find(a => a.id === id);
-  if (!gameState.upgrades[id] && gameState.gold >= item.baseCost) {
+  if (gameState.gold >= item.baseCost && !gameState.upgrades[id]) {
     gameState.gold -= item.baseCost;
     gameState.upgrades[id] = true;
     
-    if (id === 'velvetMat') gameState.flipDurationModifier = 2; // Twice as fast
+    if (id === 'velvetMat') {
+      gameState.flipDurationModifier = 1.5;
+    }
     
-    AudioSystem.playUpgrade();
-    updateShopUI();
+    AudioSystem.playFrenzyTheme();
     updateStatsUI();
+    updateShopUI();
+    saveGame();
   }
 }
+
+window.purchaseAlchemy = purchaseAlchemy;
+window.purchaseApparatus = purchaseApparatus;
 
 function purchaseAutomation(id) {
   const item = AUTOMATION.find(a => a.id === id);
-  const currentCount = gameState.upgrades[id] || 0;
-  const cost = item.baseCost * Math.pow(1.15, currentCount); // 15% price increase per level
+  const count = gameState.upgrades[id] || 0;
+  const cost = Math.floor(item.baseCost * Math.pow(item.r, count));
   
   if (gameState.gold >= cost) {
     gameState.gold -= cost;
-    gameState.upgrades[id] = currentCount + 1;
-    AudioSystem.playUpgrade();
+    gameState.upgrades[id] = count + 1;
     recalcAutoRate();
-    updateShopUI();
+    AudioSystem.playFrenzyTheme();
     updateStatsUI();
+    updateShopUI();
+    saveGame();
   }
 }
+window.purchaseAutomation = purchaseAutomation;
 
 function recalcAutoRate() {
-  let rate = 0; // Flips per second
+  let rate = 0;
   AUTOMATION.forEach(a => {
     rate += (gameState.upgrades[a.id] || 0) * a.rate;
   });
   
-  // Wall Street City Buff (+50%)
-  if (CITIES[gameState.currentCityIndex].name === 'Wall Street') {
-    rate *= 1.5;
+  if (CITIES[gameState.currentCityIndex].name === 'Tokyo Cyber-District') {
+     rate *= 1.5; // Tokyo automation synergy buff
   }
   
   gameState.autoFlippers = rate;
 }
 
-// Override updateShopUI
-updateShopUI = () => {
-  const alchemyList = document.getElementById('alchemy-list');
-  alchemyList.innerHTML = '';
-  const nextTierIndex = gameState.upgrades.alchemy + 1;
-  if (nextTierIndex < ALCHEMY_TIERS.length) {
-    const tier = ALCHEMY_TIERS[nextTierIndex];
-    const li = document.createElement('li');
-    li.className = 'shop-item';
-    li.innerHTML = `
-      <div class="shop-item-controls">
-        <div>
-          <div class="shop-item-title">${tier.name} Coin</div>
-          <div class="shop-item-desc">Base Value: $${tier.val}</div>
-        </div>
-        <button onclick="purchaseAlchemy()" ${gameState.gold < tier.cost ? 'disabled' : ''}>Cost: $${tier.cost}</button>
-      </div>
-    `;
-    alchemyList.appendChild(li);
-  } else {
-    alchemyList.innerHTML = '<li>Max Alchemy Achieved!</li>';
-  }
+window.recalcAutoRate = recalcAutoRate;
 
-  const apparatusList = document.getElementById('apparatus-list');
-  apparatusList.innerHTML = '';
-  APPARATUS.forEach(a => {
-    if (!gameState.upgrades[a.id]) {
-      const li = document.createElement('li');
-      li.className = 'shop-item';
-      li.innerHTML = `
-        <div class="shop-item-controls">
-          <div>
-            <div class="shop-item-title">${a.name}</div>
-            <div class="shop-item-desc">${a.desc}</div>
-          </div>
-          <button onclick="purchaseApparatus('${a.id}')" ${gameState.gold < a.baseCost ? 'disabled' : ''}>Cost: $${a.baseCost}</button>
-        </div>
-      `;
-      apparatusList.appendChild(li);
-    }
-  });
-
-  const autoList = document.getElementById('automation-list');
-  autoList.innerHTML = '';
-  AUTOMATION.forEach(a => {
-    const count = gameState.upgrades[a.id] || 0;
-    const cost = Math.floor(a.baseCost * Math.pow(1.15, count));
-    const li = document.createElement('li');
-    li.className = 'shop-item';
-    li.innerHTML = `
-      <div class="shop-item-controls">
-        <div>
-          <div class="shop-item-title">${a.name} (Lvl ${count})</div>
-          <div class="shop-item-desc">${a.desc}</div>
-        </div>
-        <button onclick="purchaseAutomation('${a.id}')" ${gameState.gold < cost ? 'disabled' : ''}>Cost: $${cost}</button>
-      </div>
-    `;
-    autoList.appendChild(li);
-  });
-};
-
-// Automation Loop
 let automationAccumulator = 0;
 let lastTime = performance.now();
 
 function automationTick(now) {
   let dt = (now - lastTime) / 1000;
   lastTime = now;
-  
-  if (dt > 1) dt = 1; // Cap delta time to prevent tab freeze upon resume
+  if (dt > 1) dt = 1;
   
   if (gameState.autoFlippers > 0) {
     automationAccumulator += gameState.autoFlippers * dt;
@@ -930,27 +227,41 @@ function automationTick(now) {
     }
   }
 
-  // Passive Dividend in Tokyo
-  if (CITIES[gameState.currentCityIndex].name === 'Tokyo Cyber-District' && gameState.upgrades.alchemy >= 4) { // Crypto or higher
-     addGold(10 * dt); // Small passive income
+  // Frenzy decay
+  if (!gameState.isGoldRush && gameState.frenzy > 0) {
+      gameState.frenzy = Math.max(0, gameState.frenzy - (dt * 2));
+      updateStatsUI();
+  }
+
+  if (CITIES[gameState.currentCityIndex].name === 'Tokyo Cyber-District' && gameState.upgrades.alchemy >= 4) {
+     addGold(10 * dt); 
   }
 
   requestAnimationFrame(automationTick);
 }
 requestAnimationFrame(automationTick);
 
+// High-Frequency Market Burst (Wall Street)
+setInterval(() => {
+    if (CITIES[gameState.currentCityIndex].name === 'Wall Street') {
+        if (Math.random() < 0.3) { // 30% chance every 10 seconds
+            const burst = gameState.baseCoinValue * 100;
+            addGold(burst);
+            spawnFloatingText('MARKET BURST! +$' + burst, '#10b981');
+        }
+    }
+}, 10000);
+
 // Interest Loop (Geneva)
 setInterval(() => {
   if (CITIES[gameState.currentCityIndex].name === 'Geneva Vault' && gameState.gold > 0) {
-    const interest = gameState.gold * 0.02; // 2% per min (tick is 1 min)
+    const interest = gameState.gold * 0.05; // buffed to 5% per min
     addGold(interest);
     spawnFloatingText('Interest! +$' + Math.floor(interest), '#4ade80');
   }
-}, 60000); // 1 minute
+}, 60000);
 
-// --- Gamble Mini-Game ---
-
-// Unlocked after first automation purchase or enough lifetime gold
+// Gamble Mini-Game
 let gambleUnlocked = false;
 
 function checkUnlockGamble() {
@@ -959,42 +270,32 @@ function checkUnlockGamble() {
     document.getElementById('gamble-mini-game').classList.remove('hidden');
   }
 }
-
-// Check every few seconds
 setInterval(checkUnlockGamble, 2000);
 
-let activeWager = null; // { amount, prediction }
+let activeWager = null;
 
-document.getElementById('btn-gamble').addEventListener('click', () => {
-  if (activeWager) return; // Prevent setting new wager if already active
-  
-  const amount = parseInt(document.getElementById('wager-amount').value, 10);
-  const prediction = document.getElementById('wager-prediction').value;
-  
-  if (isNaN(amount) || amount <= 0) return;
-  if (amount > gameState.gambleCap) {
-    alert("Wager exceeds cap!");
-    return;
-  }
-  if (amount > gameState.gold) {
-    alert("Not enough gold!");
-    return;
-  }
-  
-  gameState.gold -= amount;
-  activeWager = { amount, prediction };
-  
-  document.getElementById('gamble-result').textContent = "Wager set. Click the coin to flip!";
-  document.getElementById('gamble-result').style.color = "#f8fafc";
-  
-  updateStatsUI();
-});
+const btnGamble = document.getElementById('btn-gamble');
+if (btnGamble) {
+    btnGamble.addEventListener('click', () => {
+      if (activeWager) return; 
+      const amount = parseInt(document.getElementById('wager-amount').value, 10);
+      const prediction = document.getElementById('wager-prediction').value;
+      if (isNaN(amount) || amount <= 0) return;
+      if (amount > gameState.gambleCap) { alert("Wager exceeds cap!"); return; }
+      if (amount > gameState.gold) { alert("Not enough gold!"); return; }
+      
+      gameState.gold -= amount;
+      activeWager = { amount, prediction };
+      
+      document.getElementById('gamble-result').textContent = "Wager set. Click the coin to flip!";
+      document.getElementById('gamble-result').style.color = "#f8fafc";
+      updateStatsUI();
+    });
+}
 
-// Override checkGambleResult
-checkGambleResult = (result, isManual) => {
+function checkGambleResult(result, isManual) {
   if (activeWager && isManual) {
     if (result === activeWager.prediction) {
-      // Won double or nothing
       const payout = activeWager.amount * 2;
       gameState.gold += payout;
       gameState.lifetimeGold += payout;
@@ -1002,75 +303,35 @@ checkGambleResult = (result, isManual) => {
       updateShopUI();
       document.getElementById('gamble-result').textContent = `WON! +$${payout}`;
       document.getElementById('gamble-result').style.color = "#4ade80";
-      AudioSystem.playFanfare();
+      AudioSystem.playFrenzyTheme();
       spawnFloatingText(`GAMBLE WON!`, '#4ade80');
     } else {
-      // Lost
       document.getElementById('gamble-result').textContent = `Lost $${activeWager.amount}`;
-      document.getElementById('gamble-result').style.color = "#f87171";
+      document.getElementById('gamble-result').style.color = "#ef4444"; // Crimson
     }
     activeWager = null;
   }
-};
-
-// --- Prestige Layer 1: City Relocation ---
-
-function updateCityUI() {
-  document.getElementById('current-city').textContent = CITIES[gameState.currentCityIndex].name;
-  document.getElementById('cities-visited').textContent = gameState.citiesVisited;
-  document.getElementById('influence-tokens').textContent = gameState.influenceTokens;
-  
-  const list = document.getElementById('cities-list');
-  list.innerHTML = '';
-  
-  CITIES.forEach((city, index) => {
-    if (index === gameState.currentCityIndex) return; // Skip current
-    
-    // Relocation cost scales with cities visited
-    const cost = 10000 * Math.pow(10, gameState.citiesVisited);
-    
-    const li = document.createElement('div');
-    li.style.marginBottom = '10px';
-    li.innerHTML = `
-      <strong>${city.name}</strong><br>
-      <span style="font-size: 0.8em; color: #94a3b8;">${city.desc}</span><br>
-      <button onclick="relocateCity(${index})" ${gameState.gold < cost ? 'disabled' : ''}>Relocate (Cost: $${cost})</button>
-    `;
-    list.appendChild(li);
-  });
-  
-  // Show Prestige 2 if tokens >= 5
-  if (gameState.influenceTokens >= 5) {
-    document.getElementById('prestige-layer-2').classList.remove('hidden');
-    updateDominationUI();
-  }
 }
 
-function relocateCity(index) {
+// Prestige Layer 1: City Relocation
+window.relocateCity = function(index) {
   const cost = 10000 * Math.pow(10, gameState.citiesVisited);
   if (gameState.gold >= cost) {
     if (confirm(`Relocate to ${CITIES[index].name}? You will lose local gold and apparatus upgrades, but gain 1 City Influence Token (+10% global gold).`)) {
-      // Prestige Reset
       gameState.gold = 0;
       gameState.upgrades.velvetMat = false;
       gameState.upgrades.magneticTable = false;
+      gameState.upgrades.heavyTungsten = false;
       gameState.flipDurationModifier = 1;
-      
-      // Keep Alchemy and Automation, but lose some progress? Issue says "resets local gold and standard apparatus".
-      // We will keep automation as it's not "standard apparatus".
       
       gameState.currentCityIndex = index;
       gameState.citiesVisited++;
       gameState.influenceTokens++;
-      
-      // Reset streaks on relocation
       gameState.currentStreak = 0;
       gameState.multiplier = 1;
       
-      // Apply city buffs
       applyCityBuffs();
-      
-      AudioSystem.playFanfare();
+      AudioSystem.playFrenzyTheme();
       updateCityUI();
       updateShopUI();
       updateStatsUI();
@@ -1081,67 +342,20 @@ function relocateCity(index) {
 
 function applyCityBuffs() {
   const city = CITIES[gameState.currentCityIndex].name;
-  
-  // Reset buffs
   gameState.gambleCap = 100;
-  
   if (city === 'Monte Carlo') {
     gameState.gambleCap = 10000;
   }
-  
-  document.getElementById('gamble-cap').textContent = gameState.gambleCap;
-  recalcAutoRate(); // For Wall Street
+  const capEl = document.getElementById('gamble-cap');
+  if (capEl) capEl.textContent = gameState.gambleCap.toLocaleString();
+  recalcAutoRate(); 
 }
 
-// Initial Call
-applyCityBuffs();
-updateCityUI();
-
-
-// --- Prestige Layer 2: Buy the World ---
-
-const DOMINATION = [
-  { id: 'landmarks', name: 'Landmarks', items: ['Statue of Liberty', 'Eiffel Tower', 'Tokyo Tower'], cost: 1e9, tokenCost: 5 },
-  { id: 'banks', name: 'Central Banks', items: ['Federal Reserve', 'Bank of England'], cost: 1e12, tokenCost: 10 },
-  { id: 'continents', name: 'Continents', items: ['Oceania', 'Europe', 'Americas', 'Asia'], cost: 1e15, tokenCost: 20 }
-];
-
-function updateDominationUI() {
-  const list = document.getElementById('domination-list');
-  list.innerHTML = '';
-  
-  DOMINATION.forEach(d => {
-    let owned = 0;
-    if (d.id === 'landmarks') owned = gameState.landmarksOwned;
-    if (d.id === 'banks') owned = gameState.banksOwned;
-    if (d.id === 'continents') owned = gameState.continentsOwned;
-    
-    if (owned < d.items.length) {
-      const nextItem = d.items[owned];
-      const li = document.createElement('div');
-      li.style.marginBottom = '10px';
-      li.innerHTML = `
-        <strong>Buy ${nextItem} (${d.name})</strong><br>
-        <button onclick="purchaseDomination('${d.id}')" ${gameState.gold < d.cost || gameState.influenceTokens < d.tokenCost ? 'disabled' : ''}>
-          Buy (Cost: $${d.cost.toExponential(2)} & ${d.tokenCost} Tokens)
-        </button>
-      `;
-      list.appendChild(li);
-    } else {
-      const li = document.createElement('div');
-      li.style.marginBottom = '10px';
-      li.innerHTML = `<strong>All ${d.name} Owned!</strong>`;
-      list.appendChild(li);
-    }
-  });
-}
-
-function purchaseDomination(id) {
+// Prestige Layer 2: Buy the World
+window.purchaseDomination = function(id) {
   const category = DOMINATION.find(d => d.id === id);
   if (gameState.gold >= category.cost && gameState.influenceTokens >= category.tokenCost) {
     gameState.gold -= category.cost;
-    // We don't spend tokens, just require them. If we spend them: gameState.influenceTokens -= category.tokenCost;
-    // Issue says "Once players accumulate substantial City Influence..." implying a threshold, not a currency spend.
     
     if (id === 'landmarks') gameState.landmarksOwned++;
     if (id === 'banks') gameState.banksOwned++;
@@ -1152,7 +366,7 @@ function purchaseDomination(id) {
       }
     }
     
-    AudioSystem.playFanfare();
+    AudioSystem.playFrenzyTheme();
     updateStatsUI();
     updateDominationUI();
     saveGame();
@@ -1163,11 +377,20 @@ function triggerVictory() {
   document.getElementById('victory-screen').classList.remove('hidden');
 }
 
-document.getElementById('btn-endless-mode').addEventListener('click', () => {
-  document.getElementById('victory-screen').classList.add('hidden');
-  spawnFloatingText('COSMIC MINT MODE ENGAGED', '#00ffff');
-});
+const btnEndless = document.getElementById('btn-endless-mode');
+if (btnEndless) {
+    btnEndless.addEventListener('click', () => {
+      document.getElementById('victory-screen').classList.add('hidden');
+      spawnFloatingText('COSMIC MINT MODE ENGAGED', '#00ffff');
+    });
+}
 
-// Initialize UI
+// Initialization
+loadGame();
+updateCoinMaterialFromState();
+applyCityBuffs();
+updateCityUI();
 updateStatsUI();
 updateShopUI();
+recalcAutoRate();
+setInterval(saveGame, 5000);
