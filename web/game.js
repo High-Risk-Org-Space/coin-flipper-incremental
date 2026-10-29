@@ -1,6 +1,8 @@
 // --- Core Gameplay Mechanics ---
 
 function addGold(amount) {
+  if (isNaN(amount) || !isFinite(amount)) return;
+
   const influenceMultiplier = 1 + (gameState.influenceTokens * 0.1);
   let dominationMultiplier = 1;
   if (gameState.landmarksOwned) dominationMultiplier += (gameState.landmarksOwned * 0.5);
@@ -136,6 +138,7 @@ onCoinLanded = (result) => {
 };
 
 canvas.addEventListener('click', (e) => {
+  AudioSystem.resume();
   if (!coinState.isFlipping) {
     createParticle(e.clientX, e.clientY, '#ffffff'); // Click burst spark
   }
