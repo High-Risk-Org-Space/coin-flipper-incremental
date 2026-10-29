@@ -17,6 +17,7 @@ const AudioSystem = {
   },
 
   playWhoosh() {
+    this.init();
     if (this.muted || !this.ctx) return;
     this.resume();
     const t = this.ctx.currentTime;
@@ -54,6 +55,7 @@ const AudioSystem = {
   },
 
   playClink(pitchMultiplier = 1) {
+    this.init();
     if (this.muted || !this.ctx) return;
     this.resume();
     const t = this.ctx.currentTime;
@@ -76,6 +78,7 @@ const AudioSystem = {
   },
 
   playUpgrade() {
+    this.init();
     if (this.muted || !this.ctx) return;
     this.resume();
     const t = this.ctx.currentTime;
@@ -100,6 +103,7 @@ const AudioSystem = {
   },
 
   playFanfare() {
+    this.init();
     if (this.muted || !this.ctx) return;
     this.resume();
     const t = this.ctx.currentTime;
@@ -374,7 +378,15 @@ function updateStatsUI() {
 function addGold(amount) {
   // Apply City Influence (+10% per token)
   const influenceMultiplier = 1 + (gameState.influenceTokens * 0.1);
-  const totalAmount = amount * influenceMultiplier;
+  
+  // Apply Geopolitical Domination Bonuses
+  // e.g. Landmarks +50% each, Banks +200% each, Continents +1000% each
+  let dominationMultiplier = 1;
+  if (gameState.landmarksOwned) dominationMultiplier += (gameState.landmarksOwned * 0.5);
+  if (gameState.banksOwned) dominationMultiplier += (gameState.banksOwned * 2.0);
+  if (gameState.continentsOwned) dominationMultiplier += (gameState.continentsOwned * 10.0);
+  
+  const totalAmount = amount * influenceMultiplier * dominationMultiplier;
   
   gameState.gold += totalAmount;
   gameState.lifetimeGold += totalAmount;
@@ -524,6 +536,7 @@ function applyLoadedState() {
   updateCoinMaterial(alchemyNames[gameState.upgrades.alchemy] || 'Copper');
   
   // Re-calculate derived stats
+  applyCityBuffs();
   updateShopUI();
   updateStatsUI();
   updateCityUI(); // defined later
@@ -725,8 +738,10 @@ let automationAccumulator = 0;
 let lastTime = performance.now();
 
 function automationTick(now) {
-  const dt = (now - lastTime) / 1000;
+  let dt = (now - lastTime) / 1000;
   lastTime = now;
+  
+  if (dt > 1) dt = 1; // Cap delta time to prevent tab freeze upon resume
   
   if (gameState.autoFlippers > 0) {
     automationAccumulator += gameState.autoFlippers * dt;
@@ -772,6 +787,8 @@ setInterval(checkUnlockGamble, 2000);
 let activeWager = null; // { amount, prediction }
 
 document.getElementById('btn-gamble').addEventListener('click', () => {
+  if (activeWager) return; // Prevent setting new wager if already active
+  
   const amount = parseInt(document.getElementById('wager-amount').value, 10);
   const prediction = document.getElementById('wager-prediction').value;
   
@@ -800,7 +817,10 @@ checkGambleResult = (result, isManual) => {
     if (result === activeWager.prediction) {
       // Won double or nothing
       const payout = activeWager.amount * 2;
-      addGold(payout);
+      gameState.gold += payout;
+      gameState.lifetimeGold += payout;
+      updateStatsUI();
+      updateShopUI();
       document.getElementById('gamble-result').textContent = `WON! +$${payout}`;
       document.getElementById('gamble-result').style.color = "#4ade80";
       AudioSystem.playFanfare();
@@ -863,6 +883,10 @@ function relocateCity(index) {
       gameState.currentCityIndex = index;
       gameState.citiesVisited++;
       gameState.influenceTokens++;
+      
+      // Reset streaks on relocation
+      gameState.currentStreak = 0;
+      gameState.multiplier = 1;
       
       // Apply city buffs
       applyCityBuffs();
