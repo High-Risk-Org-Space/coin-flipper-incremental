@@ -1,16 +1,14 @@
 package main
 
 import (
-	"embed"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
-)
 
-//go:embed web/*
-var webFiles embed.FS
+	"github.com/High-Risk-Org-Space/coin-flipper-incremental/web"
+)
 
 func main() {
 	port := os.Getenv("PORT")
@@ -18,7 +16,7 @@ func main() {
 		port = "8080"
 	}
 
-	distFS, err := fs.Sub(webFiles, "web")
+	distFS, err := fs.Sub(web.Files, ".")
 	if err != nil {
 		log.Fatalf("failed to create sub filesystem: %v", err)
 	}
