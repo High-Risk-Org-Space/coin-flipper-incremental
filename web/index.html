@@ -16,7 +16,10 @@
         <button id="btn-export">Export</button>
         <button id="btn-import">Import</button>
         <button id="btn-reset">Hard Reset</button>
-        <button id="btn-audio-toggle">🔊 Mute</button>
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <button id="btn-audio-toggle">🔊 Mute</button>
+          <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5" style="width: 80px;">
+        </div>
       </div>
     </header>
 
@@ -29,10 +32,20 @@
           <p>Lifetime Gold: <span id="lifetime-gold">0</span></p>
           <p>Current Streak: <span id="current-streak">0</span></p>
           <p>Streak Record: <span id="streak-record">0</span></p>
-          <p>Cities Visited: <span id="cities-visited">0</span></p>
-          <p>City Influence Tokens: <span id="influence-tokens" class="gold-text">0</span></p>
           <p>Multiplier: <span id="streak-multiplier">1x</span></p>
         </div>
+        
+        <div id="upgrade-shop">
+          <h2>Coin Alchemy</h2>
+          <ul id="alchemy-list">
+            <!-- Populated by JS -->
+          </ul>
+          <h2>Table Apparatus</h2>
+          <ul id="apparatus-list">
+            <!-- Populated by JS -->
+          </ul>
+        </div>
+        
         <div id="gamble-mini-game" class="hidden">
           <h2>Double or Nothing</h2>
           <p>Wager Gold on next flip (Max: <span id="gamble-cap">100</span>)</p>
@@ -51,24 +64,23 @@
           <canvas id="game-canvas" width="400" height="400"></canvas>
           <div id="particles-container"></div>
         </div>
+        <div id="frenzy-container">
+            <div id="frenzy-bar"></div>
+        </div>
       </section>
 
       <section id="right-panel">
-        <div id="upgrade-shop">
-          <h2>Coin Alchemy</h2>
-          <ul id="alchemy-list">
-            <!-- Populated by JS -->
-          </ul>
-          <h2>Table Apparatus</h2>
-          <ul id="apparatus-list">
-            <!-- Populated by JS -->
-          </ul>
-        </div>
         <div id="automation-shop">
-          <h2>Automation</h2>
+          <h2>Automation Empire</h2>
           <ul id="automation-list">
             <!-- Populated by JS -->
           </ul>
+        </div>
+        
+        <div id="meta-stats" style="margin-top: 20px;">
+          <h2>Macro Meta</h2>
+          <p>Cities Visited: <span id="cities-visited">0</span></p>
+          <p>City Influence Tokens: <span id="influence-tokens" class="gold-text">0</span></p>
         </div>
       </section>
     </main>

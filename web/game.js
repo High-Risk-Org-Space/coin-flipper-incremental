@@ -2,11 +2,22 @@
 const AudioSystem = {
   ctx: null,
   muted: false,
+  masterVolume: 0.5,
+  masterGain: null,
 
   init() {
     if (!this.ctx) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContext();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.connect(this.ctx.destination);
+      this.updateVolume();
+    }
+  },
+
+  updateVolume() {
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
     }
   },
 
@@ -48,33 +59,89 @@ const AudioSystem = {
     
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.masterGain);
     
     noise.start(t);
     noise.stop(t + 0.5);
   },
 
-  playClink(pitchMultiplier = 1) {
+  playClink(pitchMultiplier = 1, baseFreq = 1200, material = 'Copper', volMod = 1) {
     this.init();
     if (this.muted || !this.ctx) return;
     this.resume();
     const t = this.ctx.currentTime;
     
-    const osc = this.ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1500 * pitchMultiplier, t);
-    osc.frequency.exponentialRampToValueAtTime(2500 * pitchMultiplier, t + 0.1);
+    // Quantum material: Modulated chorus chime
+    if (material === 'Quantum') {
+        const freqs = [baseFreq, baseFreq * 1.01, baseFreq * 0.99];
+        freqs.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'triangle';
+            
+            // LFO for modulation
+            const lfo = this.ctx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 5 + i;
+            
+            const lfoGain = this.ctx.createGain();
+            lfoGain.gain.value = 20;
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            
+            osc.frequency.value = freq * pitchMultiplier;
+            
+            const panner = this.ctx.createStereoPanner();
+            panner.pan.value = (i === 1) ? 1 : (i === 2 ? -1 : 0);
+            
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.3 * volMod, t + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
+            
+            osc.connect(gain);
+            gain.connect(panner);
+            panner.connect(this.masterGain);
+            
+            lfo.start(t);
+            osc.start(t);
+            lfo.stop(t + 1.5);
+            osc.stop(t + 1.5);
+        });
+        return;
+    }
     
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.8, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    // Modal synthesis with harmonic ratios for metallic disc
+    const f0 = baseFreq * pitchMultiplier;
+    const modes = [f0, f0 * 1.593, f0 * 2.135, f0 * 2.653];
     
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    
-    osc.start(t);
-    osc.stop(t + 0.3);
+    // Damping based on material
+    let damping = 0.3; // Default
+    if (material === 'Copper') damping = 0.1;
+    if (material === 'Silver') damping = 0.8;
+    if (material === 'Gold') damping = 0.5;
+    if (material === 'Platinum') damping = 1.2;
+
+    modes.forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0, t);
+        
+        // Higher modes decay faster and have lower initial volume
+        const initialVol = (0.5 / (i + 1)) * volMod;
+        gain.gain.linearRampToValueAtTime(initialVol, t + 0.01);
+        
+        const decayTime = (damping / (i * 0.5 + 1));
+        gain.gain.exponentialRampToValueAtTime(0.001, t + Math.max(0.05, decayTime));
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.start(t);
+        osc.stop(t + Math.max(0.1, decayTime + 0.1));
+    });
   },
 
   playUpgrade() {
@@ -83,22 +150,27 @@ const AudioSystem = {
     this.resume();
     const t = this.ctx.currentTime;
     
-    const freqs = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+    // Rich, warm jazz/lounge chords (Major 9th - Cmaj9: C, E, G, B, D)
+    const base = 261.63; // C4
+    const freqs = [base, base * 1.25, base * 1.5, base * 1.875, base * 2.25]; 
+    
     freqs.forEach((freq, i) => {
       const osc = this.ctx.createOscillator();
-      osc.type = 'triangle';
+      osc.type = 'sine'; // Soft attack envelope best with sine/triangle
       osc.frequency.value = freq;
       
+      // Soft attack envelope to prevent ear fatigue
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0, t + i * 0.1);
-      gain.gain.linearRampToValueAtTime(0.3, t + i * 0.1 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.1 + 0.4);
+      const startTime = t + (i * 0.05);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.2); // Slow attack
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.5); // Long decay
       
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.masterGain);
       
-      osc.start(t + i * 0.1);
-      osc.stop(t + i * 0.1 + 0.5);
+      osc.start(startTime);
+      osc.stop(startTime + 2.0);
     });
   },
 
@@ -129,7 +201,7 @@ const AudioSystem = {
       
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.masterGain);
       
       osc.start(startTime);
       osc.stop(startTime + duration + 0.1);
@@ -166,17 +238,18 @@ let coinState = {
   vRot: 0,
   isFlipping: false,
   result: null, // 'heads' or 'tails'
-  bounces: 0
+  bounces: 0,
+  wobbleTime: 0
 };
 
 // Materials dictionary
 const MATERIALS = {
-  Copper: { baseColor: '#b87333', edgeColor: '#8c5222', text: 'COPPER', textColor: '#5e3412', pitch: 1 },
-  Silver: { baseColor: '#c0c0c0', edgeColor: '#808080', text: 'SILVER', textColor: '#555555', pitch: 1.2 },
-  Gold:   { baseColor: '#ffd700', edgeColor: '#b8860b', text: 'GOLD',   textColor: '#8b6508', pitch: 1.5 },
-  Platinum: { baseColor: '#e5e4e2', edgeColor: '#a0a0a0', text: 'PLAT', textColor: '#404040', pitch: 1.8 },
-  Crypto: { baseColor: '#f7931a', edgeColor: '#c4710b', text: 'BTC',  textColor: '#ffffff', pitch: 2.2 },
-  Quantum:{ baseColor: '#4b0082', edgeColor: '#8a2be2', text: 'QUANTUM',textColor: '#00ffff', pitch: 3.0 }
+  Copper: { name: 'Copper', baseColor: '#b87333', edgeColor: '#8c5222', text: 'COPPER', textColor: '#5e3412', pitch: 1, baseFreq: 1200 },
+  Silver: { name: 'Silver', baseColor: '#c0c0c0', edgeColor: '#808080', text: 'SILVER', textColor: '#555555', pitch: 1, baseFreq: 3200 },
+  Gold:   { name: 'Gold', baseColor: '#ffd700', edgeColor: '#b8860b', text: 'GOLD',   textColor: '#8b6508', pitch: 1, baseFreq: 2600 },
+  Platinum: { name: 'Platinum', baseColor: '#e5e4e2', edgeColor: '#a0a0a0', text: 'PLAT', textColor: '#404040', pitch: 1, baseFreq: 4400 },
+  Crypto: { name: 'Crypto', baseColor: '#f7931a', edgeColor: '#c4710b', text: 'BTC',  textColor: '#ffffff', pitch: 1, baseFreq: 1500 },
+  Quantum:{ name: 'Quantum', baseColor: '#4b0082', edgeColor: '#8a2be2', text: 'QUANTUM',textColor: '#00ffff', pitch: 1, baseFreq: 1000 }
 };
 
 function updateCoinMaterial(materialName) {
@@ -206,14 +279,31 @@ function drawCoin() {
   const currentHeight = coinProps.radius * Math.abs(rotYScale);
   const offset = coinProps.thickness * (rotYScale > 0 ? 1 : -1) * (1 - Math.abs(rotYScale));
 
-  // Draw edge
-  if (Math.abs(rotYScale) < 0.95) {
+  // Dynamic specular light based on rotation
+  const lightAngle = (coinState.rotation % (Math.PI * 2)) / (Math.PI * 2);
+
+  // Draw edge (increased rim thickness shading)
+  if (Math.abs(rotYScale) < 0.98) {
+    // Edge body
     ctx.fillStyle = coinProps.edgeColor;
     ctx.beginPath();
     ctx.ellipse(0, offset, coinProps.radius, currentHeight, 0, 0, Math.PI * 2);
     ctx.fill();
     
     // Connect edge sides
+    ctx.beginPath();
+    ctx.moveTo(-coinProps.radius, 0);
+    ctx.lineTo(-coinProps.radius, offset);
+    ctx.lineTo(coinProps.radius, offset);
+    ctx.lineTo(coinProps.radius, 0);
+    ctx.fill();
+    
+    // Edge shading
+    const edgeGrad = ctx.createLinearGradient(-coinProps.radius, 0, coinProps.radius, 0);
+    edgeGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
+    edgeGrad.addColorStop(0.5, `rgba(255,255,255,${0.2 + 0.3 * Math.sin(lightAngle * Math.PI * 4)})`);
+    edgeGrad.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.fillStyle = edgeGrad;
     ctx.beginPath();
     ctx.moveTo(-coinProps.radius, 0);
     ctx.lineTo(-coinProps.radius, offset);
@@ -228,26 +318,36 @@ function drawCoin() {
   ctx.ellipse(0, 0, coinProps.radius, currentHeight, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Draw face text/design
-  ctx.fillStyle = coinProps.textColor;
-  ctx.font = `bold ${24 * Math.abs(rotYScale)}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  // Metallic shading gradient
+  // Face specular shading
   const grad = ctx.createLinearGradient(-coinProps.radius, -currentHeight, coinProps.radius, currentHeight);
-  grad.addColorStop(0, 'rgba(255,255,255,0.4)');
+  grad.addColorStop(0, `rgba(255,255,255,${0.3 + 0.4 * Math.cos(lightAngle * Math.PI * 2)})`);
   grad.addColorStop(0.5, 'rgba(255,255,255,0)');
-  grad.addColorStop(1, 'rgba(0,0,0,0.3)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.5)');
   
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.ellipse(0, 0, coinProps.radius, currentHeight, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Draw embossed face text/design
   if (Math.abs(rotYScale) > 0.1) {
+    ctx.font = `bold ${28 * Math.abs(rotYScale)}px 'Cinzel', 'Playfair Display', serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const text = isHeads ? coinProps.text : 'TAILS';
+    
+    // Emboss shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillText(text, 0, 2 * Math.abs(rotYScale));
+    
+    // Emboss highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(text, 0, -1 * Math.abs(rotYScale));
+
+    // Text color
     ctx.fillStyle = coinProps.textColor;
-    ctx.fillText(isHeads ? coinProps.text : 'TAILS', 0, 0);
+    ctx.fillText(text, 0, 0);
   }
 
   ctx.restore();
@@ -259,15 +359,15 @@ function renderLoop() {
 }
 
 // Particle system
-function spawnFloatingText(text, color = '#fbbf24') {
+function spawnFloatingText(text, color = '#d4af37') {
   const el = document.createElement('div');
   el.className = 'particle';
   el.textContent = text;
   el.style.color = color;
   
   // Randomize position near center
-  const x = (canvas.offsetWidth / 2) + (Math.random() * 60 - 30) - 20;
-  const y = (canvas.offsetHeight / 2) + (Math.random() * 40 - 20);
+  const x = (canvas.offsetWidth / 2) + (Math.random() * 60 - 30) - 30; // Better horizontal spread
+  const y = (canvas.offsetHeight / 2) + (Math.random() * 40 - 20) - 20; // Slightly higher start
   
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
@@ -277,6 +377,48 @@ function spawnFloatingText(text, color = '#fbbf24') {
   setTimeout(() => {
     if (el.parentNode) el.parentNode.removeChild(el);
   }, 1000);
+}
+
+function spawnSparks(x, y) {
+    const numSparks = 10;
+    for (let i = 0; i < numSparks; i++) {
+        const spark = document.createElement('div');
+        spark.className = 'spark';
+        
+        // Random velocities
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3 + 2;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        spark.style.left = `${x}px`;
+        spark.style.top = `${y}px`;
+        particlesContainer.appendChild(spark);
+        
+        let cx = x;
+        let cy = y;
+        let cvy = vy;
+        let life = 1.0;
+        
+        const animateSpark = () => {
+            if (life <= 0) {
+                if (spark.parentNode) spark.parentNode.removeChild(spark);
+                return;
+            }
+            
+            cvy += 0.1; // gravity
+            cx += vx;
+            cy += cvy;
+            life -= 0.05;
+            
+            spark.style.left = `${cx}px`;
+            spark.style.top = `${cy}px`;
+            spark.style.opacity = life;
+            
+            requestAnimationFrame(animateSpark);
+        };
+        requestAnimationFrame(animateSpark);
+    }
 }
 
 // Physics Loop
@@ -296,20 +438,42 @@ function physicsLoop() {
         coinState.vz = Math.abs(coinState.vz) * 0.4;
         coinState.vRot *= 0.5;
         coinState.bounces++;
-        AudioSystem.playClink(coinProps.pitch);
+        const volMod = 1 - (coinState.bounces * 0.2); // Decay volume
+        AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
       } else {
-        // Landing finished
-        coinState.isFlipping = false;
-        
-        // Snap to heads or tails based on current rotation
-        const rotMod = (coinState.rotation % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-        const landedHeads = rotMod < Math.PI / 2 || rotMod > Math.PI * 1.5;
-        
-        coinState.rotation = landedHeads ? 0 : Math.PI;
-        coinState.result = landedHeads ? 'heads' : 'tails';
-        
-        AudioSystem.playClink(coinProps.pitch * 0.8);
-        onCoinLanded(coinState.result);
+        // Table flutter
+        if (coinState.bounces < 5) { // Micro bounces
+             coinState.vz = Math.abs(coinState.vz) * 0.25;
+             coinState.vRot *= 0.3;
+             coinState.bounces++;
+             const volMod = Math.max(0.01, 0.5 - (coinState.bounces * 0.1));
+             AudioSystem.playClink(coinProps.pitch, coinProps.baseFreq, coinProps.name, volMod);
+        } else {
+            // Initiate wobble phase
+            if (coinState.wobbleTime === 0) {
+                 coinState.wobbleTime = 1;
+                 const rotMod = (coinState.rotation % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                 const landedHeads = rotMod < Math.PI / 2 || rotMod > Math.PI * 1.5;
+                 coinState.rotation = landedHeads ? 0 : Math.PI;
+                 coinState.result = landedHeads ? 'heads' : 'tails';
+            }
+            
+            // Micro-wobble dampening
+            if (coinState.wobbleTime > 0) {
+                 const dampening = Math.exp(-coinState.wobbleTime * 0.15); // Exponential decay
+                 const wobbleOffset = Math.sin(coinState.wobbleTime * 0.5) * 0.1 * dampening;
+                 coinState.rotation += wobbleOffset;
+                 coinState.wobbleTime++;
+                 
+                 if (dampening < 0.01) { // Wobble finished
+                      coinState.isFlipping = false;
+                      coinState.wobbleTime = 0;
+                      // Ensure it's perfectly snapped at end of wobble
+                      coinState.rotation = coinState.result === 'heads' ? 0 : Math.PI;
+                      onCoinLanded(coinState.result);
+                 }
+            }
+        }
       }
     }
   }
@@ -405,6 +569,7 @@ function flipCoin(isManual = true) {
     coinState.vz = 20 * (1 / gameState.flipDurationModifier);
     coinState.vRot = 0.5 * (1 / gameState.flipDurationModifier);
     coinState.bounces = 0;
+    coinState.wobbleTime = 0;
   } else {
     // Instant flip for automation
     const isHeads = Math.random() > 0.5;
@@ -484,7 +649,15 @@ onCoinLanded = (result) => {
   processFlipResult(result, true);
 };
 
-canvas.addEventListener('click', () => flipCoin(true));
+canvas.addEventListener('click', (e) => {
+    // Generate sparks at click relative to canvas
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    spawnSparks(x, y);
+    
+    flipCoin(true);
+});
 
 // Cities array for reference
 const CITIES = [
@@ -587,6 +760,12 @@ document.getElementById('btn-reset').addEventListener('click', hardReset);
 document.getElementById('btn-audio-toggle').addEventListener('click', (e) => {
   AudioSystem.muted = !AudioSystem.muted;
   e.target.textContent = AudioSystem.muted ? '🔇 Unmute' : '🔊 Mute';
+  AudioSystem.updateVolume();
+});
+
+document.getElementById('volume-slider').addEventListener('input', (e) => {
+    AudioSystem.masterVolume = parseFloat(e.target.value);
+    AudioSystem.updateVolume();
 });
 
 
