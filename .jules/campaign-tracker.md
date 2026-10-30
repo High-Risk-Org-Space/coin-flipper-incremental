@@ -1,23 +1,19 @@
 # Campaign Tracker
 
-Session ID: 1545998104058759341
-Active Role: PROOF
+Session ID: 7503324247286215283
+Active Role: ARCHITECT
 
 ## Summary
-Completed comprehensive audit and verification of the Gambler's Table application against the spec.
-- Fixed Helper rendering missing from rendering loop in web/renderer.js.
-- Fixed state initialization issues for helpers and hats in web/state.js.
-- Integrated slot machine and the sacrifice mechanics into index.html logic correctly.
-- Added missing audio implementations for Felt Thud, Slot Spin, Slot Win.
-- Verified LocalStorage save/load and import/export integrity.
+- Authored docs/luxury-table-spec.md detailing the architecture for an expansive luxury felt table.
+- Specified 2D physics behavior where flipped coins stay on table and displace slightly with realistic wobble and settle.
+- Outlined clean UI design requiring all upgrades and menus to be moved into secondary slide-out drawers/modals.
+- Defined core upgrades: Auto flipper, Better coins (material tier value multiplier), and Global multipliers.
 
 ## Files Touched or Inspected
-- Inspected: docs/gamblers-table-spec.md
-- Touched: web/renderer.js, web/game.js, web/audio.js, web/index.html, web/state.js, web/ui.js, .jules/campaign-tracker.md
+- Touched: docs/luxury-table-spec.md, .jules/campaign-tracker.md
 
 ## Checks Actually Run
-- go build ./cmd/server (Built successfully)
-- playwright frontend scripts to ensure DOM rendering of missing components.
+- Checked build (`go build ./cmd/server`)
 
 ## Suggested Next Role
-SCRIBE
+BUILDER
