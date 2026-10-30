@@ -1,6 +1,11 @@
 // --- Core Gameplay Mechanics ---
 
+
 function addGold(amount) {
+  if (gameState.upgrades.globalMultiplier) {
+      amount *= 2;
+  }
+
   if (isNaN(amount) || !isFinite(amount)) return;
 
   const influenceMultiplier = 1 + (gameState.influenceTokens * 0.1);

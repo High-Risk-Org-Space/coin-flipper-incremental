@@ -1,19 +1,19 @@
 # Campaign Tracker
 
-Session ID: 7503324247286215283
-Active Role: ARCHITECT
+Session ID: 5920161518564859349
+Active Role: BUILDER
 
 ## Summary
-- Authored docs/luxury-table-spec.md detailing the architecture for an expansive luxury felt table.
-- Specified 2D physics behavior where flipped coins stay on table and displace slightly with realistic wobble and settle.
-- Outlined clean UI design requiring all upgrades and menus to be moved into secondary slide-out drawers/modals.
-- Defined core upgrades: Auto flipper, Better coins (material tier value multiplier), and Global multipliers.
+- Canvas & Layout Redesign: Implemented expansive luxury felt table taking over main viewport.
+- Drawer Implementation: Moved upgrades, shop, and stats to a slide-out drawer via clean toggle.
+- Physics: Tweaked coin initialization for subtle horizontal displacement & wobble, removed coin deletion to allow accumulation, set 100 soft cap.
+- Core Upgrades: Wired up Global Multiplier upgrade and ensured Better Coins and Auto Flippers are functionally accessible in the drawer.
 
 ## Files Touched or Inspected
-- Touched: docs/luxury-table-spec.md, .jules/campaign-tracker.md
+- web/index.html, web/style.css, web/ui.js, web/game.js, web/state.js, web/renderer.js
 
 ## Checks Actually Run
-- Checked build (`go build ./cmd/server`)
+- Checked build (\`go build ./cmd/server\`)
 
 ## Suggested Next Role
-BUILDER
+PROOF

@@ -17,7 +17,8 @@ const ALCHEMY_TIERS = [
 const APPARATUS = [
   { id: 'velvetMat', name: 'Velvet Mat', desc: 'Reduces bounce, speeding up flips.', baseCost: 50 },
   { id: 'magneticTable', name: 'Magnetic Table', desc: '20% chance to flip tails into heads.', baseCost: 1000 },
-  { id: 'heavyTungsten', name: 'Heavy Tungsten Coin', desc: 'Increases base payout but slows frenzy.', baseCost: 5000 }
+  { id: 'heavyTungsten', name: 'Heavy Tungsten Coin', desc: 'Increases base payout but slows frenzy.', baseCost: 5000 },
+  { id: 'globalMultiplier', name: 'Global Multiplier', desc: 'Double flip value for all coins.', baseCost: 10000 }
 ];
 
 const AUTOMATION = [
@@ -58,6 +59,7 @@ let gameState = {
     velvetMat: false,
     magneticTable: false,
     heavyTungsten: false,
+    globalMultiplier: false,
     
     // Automation counts
     streetPerformer: 0,

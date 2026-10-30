@@ -1,3 +1,14 @@
+
+document.getElementById('btn-toggle-menu').addEventListener('click', () => {
+    document.getElementById('drawer').classList.toggle('open');
+    document.getElementById('drawer-overlay').classList.toggle('open');
+});
+
+document.getElementById('drawer-overlay').addEventListener('click', () => {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+});
+
 // UI Elements
 const elGold = document.getElementById('gold-count');
 const elTotalFlips = document.getElementById('total-flips');
