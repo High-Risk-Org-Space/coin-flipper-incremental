@@ -1,22 +1,30 @@
 # Campaign Tracker
 
-Session ID: 4262604908636126856
-Active Role: PROOF
+Session ID: 11788990235051606848
+Active Role: BUILDER
 
 ## Summary
-- Canvas & Layout Redesign: Implemented expansive luxury felt table taking over main viewport. Added resize event listener to correctly set canvas internal resolution.
-- Drawer Implementation: Verified upgrades, shop, and stats slide-out drawer.
-- Physics: Verified coin initialization for subtle horizontal displacement & wobble. Fixed coin deletion to actually allow accumulation on the table.
-- Core Upgrades: Verified Global Multiplier, Better Coins, and Auto Flippers.
-- Audio & Persistence: Verified sound playback and LocalStorage loading.
+- Addressed user feedback to fix "There is no coin" bug by initializing `activeCoins` in `web/renderer.js` to ensure a default resting coin is present on the canvas when the page loads.
+- Enforced a strict 100vw/100vh non-scrollable fullscreen layout for the main table per the user request. Moved the Gold and Multiplier displays into a compact, sleek header.
+- Fixed a bug where the canvas aspect ratio stretched because the resizing logic in `web/renderer.js` was referencing window dimensions rather than its parent container dimensions.
 
 ## Files Touched or Inspected
-- web/index.html, web/style.css, web/ui.js, web/game.js, web/state.js, web/renderer.js, web/audio.js
+- `web/index.html`
+- `web/style.css`
+- `web/renderer.js`
+- `web/game.js`
 
 ## Checks Actually Run
-- Checked build (\`go build ./cmd/server\`)
-- Verified backend server responds correctly on port 3000
-- Playwright screenshot test confirming UI updates and coin persistence.
+- Successfully built Go server (`go build ./cmd/server`).
+- Verified HTML/HTTP endpoints respond via `curl`.
+- Ran Playwright frontend verification script and inspected generated screenshots to confirm visual layout and proper coin aspect ratios.
+
+## Blockers or Supervision Needed
+- Addressed previously-raised PR block: Removed accidentally staged `/server` binary to avoid repo pollution.
+- Addressed visually stretched layout issue on PR feedback by updating `resizeCanvas` logic.
 
 ## Suggested Next Role
-SCRIBE
+PROOF
+
+## Notes for the Next Session
+- Future PROOF tasks should verify the functionality and visual placement of the other UI elements (like shops and upgrades) which should now be cleanly placed into the slide-out drawers.

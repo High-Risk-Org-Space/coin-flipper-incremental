@@ -3,11 +3,18 @@ const ctx = canvas.getContext('2d');
 const particlesContainer = document.getElementById('particles-container');
 
 function resizeCanvas() {
-  canvas.width = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
+  const container = document.getElementById('canvas-container');
+  if (container) {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  } else {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+// Wait for DOM layout to settle before initial resize
+setTimeout(resizeCanvas, 0);
 
 // Coin Properties
 const coinProps = {
@@ -21,7 +28,14 @@ const coinProps = {
 };
 
 // Physics state
-let activeCoins = [];
+let activeCoins = [{
+  x: 0,
+  y: 0,
+  z: 0,
+  isFlipping: false,
+  rotation: 0,
+  result: 'heads'
+}];
 
 // Materials dictionary
 const MATERIALS = {
