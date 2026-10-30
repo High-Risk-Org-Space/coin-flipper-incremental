@@ -2,6 +2,13 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const particlesContainer = document.getElementById('particles-container');
 
+function resizeCanvas() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
 // Coin Properties
 const coinProps = {
   radius: 80,
@@ -385,7 +392,6 @@ function physicsLoop() {
                         // Ensure it's perfectly snapped at end of wobble
                         coin.rotation = coin.result === 'heads' ? 0 : Math.PI;
                         onCoinLanded(coin.result, coin.isManual);
-                        activeCoins.splice(i, 1);
                         continue;
                    }
               }
