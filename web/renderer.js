@@ -128,6 +128,10 @@ function drawCoin(coin) {
 }
 
 
+
+
+
+
 function drawHelpers(ctx) {
   const numHelpers = gameState.helpers.length;
   gameState.helpers.forEach((helper, i) => {

@@ -69,7 +69,12 @@ let gameState = {
   // Prestige 2
   landmarksOwned: 0,
   banksOwned: 0,
-  continentsOwned: 0
+  continentsOwned: 0,
+  helpers: [],
+  hatsOwned: [],
+  activeHat: null,
+  sacrificeTokens: 0,
+  talents: []
 };
 
 const SAVE_KEY = 'coinFlipperDominationSave';
@@ -118,3 +123,5 @@ function updateCoinMaterialFromState() {
   if (gameState.upgrades.alchemy === 0) updateCoinMaterial('Copper');
   else updateCoinMaterial(ALCHEMY_TIERS[gameState.upgrades.alchemy - 1].mat);
 }
+
+

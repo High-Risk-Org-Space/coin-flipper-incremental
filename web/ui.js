@@ -66,6 +66,60 @@ function updateShopUI() {
     }
   });
 
+
+  const helperList = document.getElementById('helper-list');
+  if (helperList) {
+      helperList.innerHTML = '';
+      const helperCost = 500 * Math.pow(2, gameState.helpers.length);
+      if (gameState.helpers.length < 6) {
+          const li = document.createElement('li');
+          li.className = 'shop-item';
+          li.innerHTML = `
+            <div class="shop-item-controls">
+              <div>
+                <div class="shop-item-title">Hire Little Helper (${gameState.helpers.length}/6)</div>
+                <div class="shop-item-desc">Automatically tosses coins onto the table.</div>
+              </div>
+              <button onclick="hireHelper()" ${gameState.gold < helperCost ? 'disabled' : ''}>Cost: ${helperCost.toLocaleString()}</button>
+            </div>
+          `;
+          helperList.appendChild(li);
+      } else {
+          helperList.innerHTML = '<li>Max Helpers Reached!</li>';
+      }
+  }
+
+  const hatList = document.getElementById('hat-list');
+  if (hatList && typeof HATS !== 'undefined') {
+      hatList.innerHTML = '';
+      HATS.forEach(hat => {
+          const li = document.createElement('li');
+          li.className = 'shop-item';
+          const isOwned = gameState.hatsOwned.includes(hat.id);
+          const isEquipped = gameState.activeHat === hat.id;
+          
+          let btnHTML = '';
+          if (isEquipped) {
+              btnHTML = '<button disabled>Equipped</button>';
+          } else if (isOwned) {
+              btnHTML = `<button onclick="equipHat('${hat.id}')">Equip</button>`;
+          } else {
+              btnHTML = `<button onclick="buyHat('${hat.id}')" ${gameState.gold < hat.cost ? 'disabled' : ''}>Cost: ${hat.cost.toLocaleString()}</button>`;
+          }
+
+          li.innerHTML = `
+            <div class="shop-item-controls">
+              <div>
+                <div class="shop-item-title">${hat.name}</div>
+                <div class="shop-item-desc">${hat.desc}</div>
+              </div>
+              ${btnHTML}
+            </div>
+          `;
+          hatList.appendChild(li);
+      });
+  }
+
   const autoList = document.getElementById('automation-list');
   autoList.innerHTML = '';
   AUTOMATION.forEach(a => {
@@ -199,3 +253,47 @@ if (tableclothSelector && canvasContainer) {
         canvasContainer.classList.add(e.target.value);
     });
 }
+function openTalentModal() {
+    const modal = document.getElementById('talent-tree-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeTalentModal() {
+    const modal = document.getElementById('talent-tree-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+
+function updateTalentTreeUI() {
+    const tokensEl = document.getElementById('sacrifice-tokens');
+    if (tokensEl) tokensEl.textContent = gameState.sacrificeTokens;
+    const modalTokensEl = document.getElementById('modal-sacrifice-tokens');
+    if (modalTokensEl) modalTokensEl.textContent = gameState.sacrificeTokens;
+    
+    const treeContainer = document.getElementById('talent-tree-container');
+    if (treeContainer && typeof TALENT_NODES !== 'undefined') {
+        treeContainer.innerHTML = '';
+        for (const [id, node] of Object.entries(TALENT_NODES)) {
+            const isOwned = gameState.talents.includes(id);
+            const canAfford = gameState.sacrificeTokens >= node.cost;
+            const reqsMet = node.req.every(req => gameState.talents.includes(req));
+            
+            const btn = document.createElement('button');
+            btn.style.margin = '5px';
+            btn.innerHTML = `${node.name}<br><small>${node.desc}</small><br>Cost: ${node.cost}`;
+            
+            if (isOwned) {
+                btn.style.backgroundColor = '#10b981'; // Green
+                btn.disabled = true;
+            } else if (!reqsMet || !canAfford) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            } else {
+                btn.onclick = () => purchaseTalent(id);
+            }
+            
+            treeContainer.appendChild(btn);
+        }
+    }
+}
+

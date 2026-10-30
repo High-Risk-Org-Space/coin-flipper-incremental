@@ -85,7 +85,7 @@ function processFlipResult(result, isManual = true) {
   const isGoldenEdge = Math.random() < edgeChance;
 
   let baseVal = gameState.baseCoinValue;
-  if (gameState.talents.includes('goldenMultiplier')) baseVal *= 2;
+
   if (gameState.upgrades.heavyTungsten) {
       baseVal *= 2; // Heavy tungsten increases base value
   }
@@ -406,7 +406,9 @@ function purchaseTalent(nodeId) {
     }
 }
 window.purchaseTalent = purchaseTalent;
-? You will lose local gold and apparatus upgrades, but gain 1 City Influence Token (+10% global gold).`)) {
+function relocateCity(index) {
+  if (gameState.gold >= 10000 * Math.pow(10, gameState.citiesVisited)) {
+    if (confirm(`Relocate to ${CITIES[index].name}? You will lose local gold and apparatus upgrades, but gain 1 City Influence Token (+10% global gold).`)) {
       gameState.gold = 0;
       gameState.upgrades.velvetMat = false;
       gameState.upgrades.magneticTable = false;

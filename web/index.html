@@ -57,6 +57,18 @@
           </ul>
         </div>
         
+        
+        <div id="slot-machine-panel">
+          <h2>Slot Machine</h2>
+          <div class="slot-reels">
+            <span class="reel" id="reel-1">🍒</span>
+            <span class="reel" id="reel-2">🍒</span>
+            <span class="reel" id="reel-3">🍒</span>
+          </div>
+          <button id="btn-spin-slot">Spin ($100)</button>
+          <p id="slot-result"></p>
+        </div>
+
         <div id="gamble-mini-game" class="hidden">
           <h2>Double or Nothing</h2>
           <p>Wager Gold on next flip (Max: <span id="gamble-cap">100</span>)</p>
@@ -81,6 +93,23 @@
       </section>
 
       <section id="right-panel">
+        
+        <div id="helper-shop">
+          <h2>Little Helpers</h2>
+          <p>Hire assistants to toss coins for you.</p>
+          <ul id="helper-list">
+            <!-- Populated by JS -->
+          </ul>
+        </div>
+        
+        <div id="hat-shop">
+          <h2>Hat Boutique</h2>
+          <p>Equip hats to your helpers for bonuses.</p>
+          <ul id="hat-list">
+            <!-- Populated by JS -->
+          </ul>
+        </div>
+
         <div id="automation-shop">
           <h2>Automation Empire</h2>
           <ul id="automation-list">
@@ -97,6 +126,14 @@
     </main>
     
     <footer>
+      
+      <section id="sacrifice-section">
+        <h2>The Sacrifice (Prestige)</h2>
+        <p>Tokens: <span id="sacrifice-tokens">0</span></p>
+        <button id="btn-sacrifice" style="background-color: #ef4444;">Perform The Sacrifice</button>
+        <button id="btn-open-talents" onclick="openTalentModal()">View Talent Tree</button>
+      </section>
+
       <section id="prestige-layer-1">
         <h2>City Relocation (Prestige 1)</h2>
         <p>Current City: <span id="current-city" class="gold-text">Rusty Alley</span></p>
@@ -118,6 +155,18 @@
     <h1>World Domination Achieved!</h1>
     <p>You have bought all the continents. The world is yours.</p>
     <button id="btn-endless-mode">Continue in Cosmic Mint Mode</button>
+  </div>
+
+  
+  <div id="talent-tree-modal" class="hidden">
+    <div class="modal-content">
+      <h2>Talent Tree</h2>
+      <p>Tokens Available: <span id="modal-sacrifice-tokens">0</span></p>
+      <div id="talent-tree-container">
+          <!-- Populated by JS -->
+      </div>
+      <button onclick="closeTalentModal()" style="margin-top: 20px;">Close</button>
+    </div>
   </div>
 
   <div id="stats-modal" class="hidden">
