@@ -399,3 +399,54 @@ body.gold-rush::after {
   box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
   background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
 }
+
+/* Helper & Hat Shops */
+.hat-item {
+    font-size: 0.9em;
+}
+
+/* Slot Machine */
+.slot-machine {
+    background: #1e293b;
+    border: 2px solid #d4af37;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.slot-reels {
+    display: flex;
+    justify-content: space-around;
+    background: #0f172a;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px inset #334155;
+}
+
+.slot-reel {
+    font-size: 32px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8fafc;
+    color: #0f172a;
+    border-radius: 4px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Talent Tree Nodes */
+.talent-node {
+    background: rgba(30, 41, 59, 0.8);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.talent-node:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.talent-node.owned {
+    background: rgba(212, 175, 55, 0.2);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}

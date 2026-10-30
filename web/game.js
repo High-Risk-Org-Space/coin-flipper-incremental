@@ -85,6 +85,7 @@ function processFlipResult(result, isManual = true) {
   const isGoldenEdge = Math.random() < edgeChance;
 
   let baseVal = gameState.baseCoinValue;
+  if (gameState.talents.includes('goldenMultiplier')) baseVal *= 2;
   if (gameState.upgrades.heavyTungsten) {
       baseVal *= 2; // Heavy tungsten increases base value
   }
@@ -275,63 +276,137 @@ setInterval(() => {
   }
 }, 60000);
 
-// Gamble Mini-Game
-let gambleUnlocked = false;
 
-function checkUnlockGamble() {
-  if (!gambleUnlocked && gameState.lifetimeGold > 1000) {
-    gambleUnlocked = true;
-    document.getElementById('gamble-mini-game').classList.remove('hidden');
-  }
+// Slot Machine Logic
+const SLOT_SYMBOLS = ['🍒', 'BAR', '🔔', '7️⃣', '🎰'];
+const SLOT_COST = 100;
+let isSpinning = false;
+
+function spinSlotMachine() {
+    if (isSpinning || gameState.gold < SLOT_COST) return;
+    gameState.gold -= SLOT_COST;
+    updateStatsUI();
+    isSpinning = true;
+    
+    document.getElementById('slot-result').textContent = "Spinning...";
+    document.getElementById('slot-result').style.color = "#f8fafc";
+    
+    AudioSystem.playSlotSpin();
+
+    let spins = 0;
+    const maxSpins = 20;
+    
+    const spinInterval = setInterval(() => {
+        for (let i = 1; i <= 3; i++) {
+            const randomSym = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+            document.getElementById(`reel-${i}`).textContent = randomSym;
+        }
+        spins++;
+        if (spins >= maxSpins) {
+            clearInterval(spinInterval);
+            processSlotPayout();
+        }
+    }, 100);
 }
-setInterval(checkUnlockGamble, 2000);
 
-let activeWager = null;
-
-const btnGamble = document.getElementById('btn-gamble');
-if (btnGamble) {
-    btnGamble.addEventListener('click', () => {
-      if (activeWager) return; 
-      const amount = parseInt(document.getElementById('wager-amount').value, 10);
-      const prediction = document.getElementById('wager-prediction').value;
-      if (isNaN(amount) || amount <= 0) return;
-      if (amount > gameState.gambleCap) { alert("Wager exceeds cap!"); return; }
-      if (amount > gameState.gold) { alert("Not enough gold!"); return; }
-      
-      gameState.gold -= amount;
-      activeWager = { amount, prediction };
-      
-      document.getElementById('gamble-result').textContent = "Wager set. Click the coin to flip!";
-      document.getElementById('gamble-result').style.color = "#f8fafc";
-      updateStatsUI();
-    });
-}
-
-function checkGambleResult(result, isManual) {
-  if (activeWager && isManual) {
-    if (result === activeWager.prediction) {
-      const payout = activeWager.amount * 2;
-      gameState.gold += payout;
-      gameState.lifetimeGold += payout;
-      updateStatsUI();
-      updateShopUI();
-      document.getElementById('gamble-result').textContent = `WON! +$${payout}`;
-      document.getElementById('gamble-result').style.color = "#4ade80";
-      AudioSystem.playFrenzyTheme();
-      spawnFloatingText(`GAMBLE WON!`, '#4ade80');
-    } else {
-      document.getElementById('gamble-result').textContent = `Lost $${activeWager.amount}`;
-      document.getElementById('gamble-result').style.color = "#ef4444"; // Crimson
+function processSlotPayout() {
+    isSpinning = false;
+    
+    // Apply slot luck talent
+    let reel1 = document.getElementById('reel-1').textContent;
+    let reel2 = document.getElementById('reel-2').textContent;
+    let reel3 = document.getElementById('reel-3').textContent;
+    
+    if (gameState.talents.includes('slotLuck') && Math.random() < 0.2) {
+         // 20% chance to force a win if slot luck is owned
+         reel2 = reel1;
+         reel3 = reel1;
+         document.getElementById('reel-2').textContent = reel2;
+         document.getElementById('reel-3').textContent = reel3;
     }
-    activeWager = null;
-  }
+
+    if (reel1 === reel2 && reel2 === reel3) {
+        let multiplier = 5;
+        if (reel1 === 'BAR') multiplier = 10;
+        if (reel1 === '🔔') multiplier = 20;
+        if (reel1 === '7️⃣') multiplier = 50;
+        if (reel1 === '🎰') multiplier = 100;
+        
+        const payout = SLOT_COST * multiplier;
+        gameState.gold += payout;
+        gameState.lifetimeGold += payout;
+        
+        document.getElementById('slot-result').textContent = `WIN! +$${payout}`;
+        document.getElementById('slot-result').style.color = "#4ade80";
+        AudioSystem.playSlotWin();
+        spawnFloatingText(`JACKPOT! +$${payout}`, '#4ade80');
+        updateStatsUI();
+        saveGame();
+    } else {
+        document.getElementById('slot-result').textContent = "Try Again";
+        document.getElementById('slot-result').style.color = "#94a3b8";
+    }
 }
 
-// Prestige Layer 1: City Relocation
-window.relocateCity = function(index) {
-  const cost = 10000 * Math.pow(10, gameState.citiesVisited);
-  if (gameState.gold >= cost) {
-    if (confirm(`Relocate to ${CITIES[index].name}? You will lose local gold and apparatus upgrades, but gain 1 City Influence Token (+10% global gold).`)) {
+const btnSpinSlot = document.getElementById('btn-spin-slot');
+if (btnSpinSlot) {
+    btnSpinSlot.addEventListener('click', spinSlotMachine);
+}
+
+
+
+// The Sacrifice & Talents
+function performSacrifice() {
+    const tokens = Math.floor(Math.sqrt(gameState.lifetimeGold / 1000000));
+    if (tokens <= 0) {
+        alert("You have not earned enough lifetime gold to perform a sacrifice (requires at least 1M).");
+        return;
+    }
+    
+    if (confirm(`Perform The Sacrifice? You will lose all gold, standard upgrades, hats, and helpers, but gain ${tokens} Sacrifice Tokens.`)) {
+        gameState.sacrificeTokens += tokens;
+        
+        // Reset state
+        gameState.gold = 0;
+        gameState.upgrades.alchemy = 0;
+        gameState.upgrades.velvetMat = false;
+        gameState.upgrades.magneticTable = false;
+        gameState.upgrades.heavyTungsten = false;
+        gameState.flipDurationModifier = 1;
+        gameState.helpers = [];
+        gameState.hatsOwned = [];
+        gameState.activeHat = null;
+        gameState.currentStreak = 0;
+        gameState.multiplier = 1;
+        
+        updateCoinMaterialFromState();
+        AudioSystem.playFrenzyTheme();
+        updateStatsUI();
+        updateShopUI();
+        updateTalentTreeUI();
+        saveGame();
+    }
+}
+
+const btnSacrifice = document.getElementById('btn-sacrifice');
+if (btnSacrifice) {
+    btnSacrifice.addEventListener('click', performSacrifice);
+}
+
+function purchaseTalent(nodeId) {
+    const node = TALENT_NODES[nodeId];
+    if (node && gameState.sacrificeTokens >= node.cost && !gameState.talents.includes(nodeId)) {
+        gameState.sacrificeTokens -= node.cost;
+        gameState.talents.push(nodeId);
+        
+        AudioSystem.playUpgrade();
+        updateTalentTreeUI();
+        updateShopUI();
+        saveGame();
+    }
+}
+window.purchaseTalent = purchaseTalent;
+? You will lose local gold and apparatus upgrades, but gain 1 City Influence Token (+10% global gold).`)) {
       gameState.gold = 0;
       gameState.upgrades.velvetMat = false;
       gameState.upgrades.magneticTable = false;
